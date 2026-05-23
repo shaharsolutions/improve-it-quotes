@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>מחולל הצעות מחיר | Improve-IT</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="app-topbar">
+        <div class="brand-lockup" aria-label="Improve-IT">
+          <img src="assets/brand/improve-it-logo.png" alt="Improve-IT" />
+          <div>
+            <strong>מחולל הצעות מחיר</strong>
+            <span>Improve-IT</span>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" id="resetSample">דוגמה</button>
+          <button type="button" id="saveData">שמירה</button>
+          <button type="button" id="createClientLink">קישור ללקוח</button>
+          <button type="button" id="showSignedArchive">מאגר חתומות</button>
+          <button type="button" id="showSettings">הגדרות</button>
+          <button type="button" class="primary" id="printQuote">הדפסה / PDF</button>
+        </div>
+      </header>
+
+      <section class="share-panel" id="sharePanel" hidden>
+        <div>
+          <strong>קישור אישי ללקוח</strong>
+          <p>שלחו את הקישור ללקוח. הקישור כולל את נתוני ההצעה ומציג ללקוח אפשרות חתימה ושליחה.</p>
+        </div>
+        <textarea id="clientLinkOutput" rows="2" readonly></textarea>
+        <div class="section-actions">
+          <button type="button" class="compact" id="copyClientLink">העתקת קישור</button>
+          <button type="button" class="compact" id="closeSharePanel">סגירה</button>
+        </div>
+      </section>
+
+      <section class="share-panel" id="signedArchivePanel" hidden>
+        <div>
+          <strong>מאגר הצעות חתומות</strong>
+          <p>המאגר נשמר בדפדפן המקומי. בחיבור עתידי לשרת, אזור זה יתחלף במאגר החברה המרכזי.</p>
+        </div>
+        <div id="signedArchiveList" class="signed-archive-list"></div>
+        <div class="section-actions">
+          <button type="button" class="compact" id="closeSignedArchive">סגירה</button>
+        </div>
+      </section>
+
+      <section class="settings-panel" id="settingsPanel" hidden>
+        <div class="settings-panel-head">
+          <div>
+            <strong>הגדרות פורמטים</strong>
+            <p>הגדירו שמות פורמטים, סעיפי ברירת מחדל וכותרות לתוכן העניינים.</p>
+          </div>
+          <div class="section-actions">
+            <button type="button" class="compact" id="addTemplateSettings">פורמט חדש</button>
+            <button type="button" class="compact" id="resetTemplateSettings">איפוס פורמטים</button>
+            <button type="button" class="compact" id="closeSettings">סגירה</button>
+          </div>
+        </div>
+        <div id="templateSettingsList" class="template-settings-list"></div>
+      </section>
+
+      <main class="workspace">
+        <aside class="editor-panel" aria-label="עריכת הצעת מחיר">
+          <form id="quoteForm">
+            <section class="editor-section">
+              <h2>פרטי הצעה</h2>
+              <div class="field-grid">
+                <label class="wide">
+                  פורמט הצעה
+                  <select name="templateId" id="templateId"></select>
+                </label>
+                <label>
+                  מספר הצעה
+                  <input name="quoteNumber" type="text" />
+                </label>
+                <label>
+                  תאריך
+                  <input name="quoteDate" type="date" />
+                </label>
+                <label>
+                  ארגון
+                  <input name="clientCompany" type="text" />
+                </label>
+                <label>
+                  איש קשר
+                  <input name="contactName" type="text" />
+                </label>
+                <label>
+                  תפקיד איש קשר
+                  <input name="contactTitle" type="text" />
+                </label>
+                <label class="wide">
+                  נושא
+                  <input name="subject" type="text" />
+                </label>
+                <label>
+                  שם חותם
+                  <input name="signatoryName" type="text" />
+                </label>
+                <label>
+                  תפקיד
+                  <input name="signatoryTitle" type="text" />
+                </label>
+              </div>
+            </section>
+
+            <section class="editor-section">
+              <h2>הרכב מסחרי</h2>
+              <div class="field-grid">
+                <label>
+                  עובדים במסלול
+                  <input name="users" type="number" min="1" step="1" />
+                </label>
+                <label>
+                  מספר לומדות
+                  <input name="courseCount" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  תוקף הצעה בימים
+                  <input name="validDays" type="number" min="1" step="1" />
+                </label>
+                <label>
+                  הנחה %
+                  <input name="discountPercent" type="number" min="0" max="100" step="0.5" />
+                </label>
+                <label>
+                  תוקף הנחה
+                  <input name="discountValidUntil" type="date" />
+                </label>
+                <label>
+                  עלות עובד נוסף
+                  <input name="additionalUserPrice" type="number" min="0" step="1" />
+                </label>
+                <label>
+                  הצגת סיכום
+                  <select name="showTotals">
+                    <option value="false">ללא טבלת סה"כ</option>
+                    <option value="true">עם טבלת סה"כ</option>
+                  </select>
+                </label>
+                <label class="wide">
+                  כותרת הנחה
+                  <input name="discountTitle" type="text" />
+                </label>
+                <div class="wide course-name-editor">
+                  <span>שמות לומדות (אופציונלי)</span>
+                  <div id="courseNamesList" class="course-name-list"></div>
+                </div>
+                <label class="wide">
+                  תיאור מסלול
+                  <input name="pricingPlanLabel" type="text" />
+                </label>
+                <label class="wide">
+                  כותרת טבלת תמחור
+                  <textarea name="pricingIntroText" rows="2" placeholder="כותרת טבלת תמחור"></textarea>
+                </label>
+              </div>
+
+              <div class="toggle-list">
+                <label class="pricing-option-row">
+                  <input name="includeLms" type="checkbox" />
+                  <input data-pricing-option-label="includeLms" type="text" aria-label="שם רכיב מערכת LMS" />
+                </label>
+                <label class="pricing-option-row">
+                  <input name="bilingualCourse" type="checkbox" />
+                  <input data-pricing-option-label="bilingualCourse" type="text" aria-label="שם רכיב עברית ואנגלית" />
+                </label>
+                <label class="pricing-option-row">
+                  <input name="includeHebrewVoiceover" type="checkbox" />
+                  <input data-pricing-option-label="includeHebrewVoiceover" type="text" aria-label="שם רכיב קריינות בעברית" />
+                </label>
+                <label class="pricing-option-row">
+                  <input name="includeEnglishVoiceover" type="checkbox" />
+                  <input data-pricing-option-label="includeEnglishVoiceover" type="text" aria-label="שם רכיב קריינות באנגלית" />
+                </label>
+                <label class="pricing-option-row">
+                  <input name="includeTranslation" type="checkbox" />
+                  <input data-pricing-option-label="includeTranslation" type="text" aria-label="שם רכיב תרגום" />
+                </label>
+              </div>
+            </section>
+
+            <section class="editor-section">
+              <h2>תוכן משתנה</h2>
+              <label class="stacked">
+                רקע
+                <textarea name="backgroundText" rows="5"></textarea>
+              </label>
+              <label class="stacked">
+                הפתרון המוצע
+                <textarea name="solutionText" rows="7"></textarea>
+              </label>
+            </section>
+
+            <section class="editor-section">
+              <div class="section-heading-row">
+                <h2>רכיבי הצעת מחיר</h2>
+                <div class="section-actions">
+                  <button type="button" class="compact" id="resetPricingItems">איפוס</button>
+                  <button type="button" class="compact" id="addPricingItem">הוספה</button>
+                </div>
+              </div>
+              <div id="pricingItems" class="custom-items"></div>
+            </section>
+
+            <section class="editor-section">
+              <h2>סעיפים במסמך</h2>
+              <div class="toggle-list columns">
+                <div class="section-toggle-row">
+                  <label><input name="showCompanyProfile" type="checkbox" /> פרופיל חברה</label>
+                  <button type="button" class="compact" data-section-edit="profile">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showClients" type="checkbox" /> לקוחות</label>
+                  <button type="button" class="compact" data-section-edit="clients">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showBackground" type="checkbox" /> רקע</label>
+                  <button type="button" class="compact" data-section-edit="background">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showSolution" type="checkbox" /> פתרון</label>
+                  <button type="button" class="compact" data-section-edit="solution">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showWorkProcess" type="checkbox" /> תהליך עבודה</label>
+                  <button type="button" class="compact" data-section-edit="work">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showPricing" type="checkbox" /> תמחור</label>
+                  <button type="button" class="compact" data-section-edit="pricing">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showTerms" type="checkbox" /> תנאים</label>
+                  <button type="button" class="compact" data-section-edit="terms">עריכה</button>
+                </div>
+                <div class="section-toggle-row">
+                  <label><input name="showCancellation" type="checkbox" /> ביטולים</label>
+                  <button type="button" class="compact" data-section-edit="cancellation">עריכה</button>
+                </div>
+              </div>
+              <div class="section-editor" id="sectionEditor" hidden>
+                <div class="section-heading-row">
+                  <h3 id="sectionEditorTitle">עריכת סעיף</h3>
+                  <div class="section-actions">
+                    <button type="button" class="compact" id="resetSectionText">איפוס</button>
+                    <button type="button" class="compact" id="closeSectionEditor">סגירה</button>
+                  </div>
+                </div>
+                <textarea id="sectionEditorText" rows="8"></textarea>
+              </div>
+            </section>
+
+            <section class="editor-section client-signature-section">
+              <h2>חתימת לקוח</h2>
+              <p class="client-sign-help">לאחר מילוי הפרטים וחתימה, יש ללחוץ על `שלח הצעה חתומה`.</p>
+              <div class="field-grid">
+                <label>
+                  שם החותם
+                  <input name="clientSignerName" type="text" />
+                </label>
+                <label>
+                  תאריך חתימה
+                  <input name="clientSignatureDate" type="date" />
+                </label>
+                <label>
+                  תפקיד
+                  <input name="clientSignerTitle" type="text" />
+                </label>
+                <label>
+                  ארגון
+                  <input name="clientSignerCompany" type="text" />
+                </label>
+              </div>
+              <div class="signature-pad-wrap">
+                <canvas id="clientSignaturePad" class="signature-pad" aria-label="משטח חתימה דיגיטלית"></canvas>
+                <div class="signature-pad-actions">
+                  <button type="button" class="compact" id="clearSignature">ניקוי חתימה</button>
+                </div>
+              </div>
+            </section>
+            <button type="button" class="primary client-only client-signature-submit" id="sendSignedQuote">שלח הצעה חתומה</button>
+          </form>
+        </aside>
+
+        <section class="preview-panel" aria-label="תצוגת הצעת מחיר">
+          <div id="proposalPreview" class="proposal-preview"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="app-dialog" id="appDialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle" hidden>
+      <div class="app-dialog-box">
+        <h2 id="appDialogTitle"></h2>
+        <div id="appDialogMessage" class="app-dialog-message"></div>
+        <div class="app-dialog-actions">
+          <button type="button" class="compact" id="appDialogCancel">ביטול</button>
+          <button type="button" class="compact primary" id="appDialogConfirm">אישור</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="src/app.js" defer></script>
+  </body>
+</html>

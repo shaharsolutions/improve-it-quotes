@@ -1,0 +1,10 @@
+{
+  "name": "improve-it-quote-generator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "pdf": "node scripts/render-pdf.mjs data/example-elhar.json output/example-elhar.pdf",
+    "serve": "python3 -m http.server 4173"
+  }
+}
