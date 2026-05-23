@@ -3,6 +3,7 @@
   const SIGNED_ARCHIVE_KEY = "improve-it-signed-quotes";
   const TEMPLATE_SETTINGS_KEY = "improve-it-template-settings";
   const memoryStorage = new Map();
+  let supabaseClient = null;
   const TEMPLATE_DEFINITIONS = {
     lmsShelfRental: {
       label: "השכרת LMS עם לומדות מדף",
@@ -201,7 +202,8 @@
   init();
 
   async function init() {
-    applyTemplateSettings(readTemplateSettings());
+    setupSupabase();
+    applyTemplateSettings(await readTemplateSettings());
     quote = normalizeQuote(await readInitialQuote());
     document.body.classList.toggle("client-mode", isClientMode);
     populateTemplateOptions();
@@ -600,7 +602,24 @@
     }, []);
   }
 
-  function readTemplateSettings() {
+  async function readTemplateSettings() {
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("template_settings")
+          .select("settings")
+          .eq("id", "default")
+          .maybeSingle();
+        if (error) throw error;
+        if (data?.settings) {
+          storageSet(TEMPLATE_SETTINGS_KEY, JSON.stringify(data.settings));
+          return data.settings;
+        }
+      } catch (error) {
+        console.warn("Could not load template settings from Supabase", error);
+      }
+    }
+
     try {
       const stored = storageGet(TEMPLATE_SETTINGS_KEY);
       return stored ? JSON.parse(stored) : null;
@@ -612,6 +631,7 @@
 
   function saveTemplateSettings() {
     storageSet(TEMPLATE_SETTINGS_KEY, JSON.stringify(TEMPLATE_DEFINITIONS));
+    saveTemplateSettingsToSupabase(TEMPLATE_DEFINITIONS);
   }
 
   function applyTemplateSettings(settings) {
@@ -646,6 +666,7 @@
     if (!confirmed) return;
 
     storageRemove(TEMPLATE_SETTINGS_KEY);
+    await resetTemplateSettingsInSupabase();
     applyTemplateSettings(DEFAULT_TEMPLATE_SETTINGS);
     populateTemplateOptions();
     populateForm();
@@ -992,11 +1013,13 @@
     };
     archive.unshift(signedRecord);
     storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
+    await saveSignedQuoteToSupabase(signedRecord);
     renderPreview();
     await showAppAlert("ההצעה נשמרה", "ההצעה החתומה נשמרה במאגר ההצעות החתומות המקומי.");
   }
 
-  function showSignedArchive() {
+  async function showSignedArchive() {
+    await syncSignedArchiveFromSupabase();
     renderSignedArchive();
     signedArchivePanel.hidden = false;
     sharePanel.hidden = true;
@@ -1081,6 +1104,7 @@
 
     archive.splice(index, 1);
     storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
+    await deleteSignedQuoteFromSupabase(record.id);
     renderSignedArchive();
   }
 
@@ -1133,6 +1157,86 @@
     } catch (error) {
       console.warn("Could not parse signed archive", error);
       return [];
+    }
+  }
+
+  function setupSupabase() {
+    const config = window.IMPROVE_IT_SUPABASE || {};
+    if (!config.url || !config.anonKey || !window.supabase?.createClient) return;
+
+    supabaseClient = window.supabase.createClient(config.url, config.anonKey);
+  }
+
+  async function syncSignedArchiveFromSupabase() {
+    if (!supabaseClient) return;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("signed_quotes")
+        .select("id,signed_at,quote")
+        .order("signed_at", { ascending: false });
+      if (error) throw error;
+
+      const archive = (data || []).map((record) => ({
+        id: record.id,
+        signedAt: record.signed_at,
+        quote: record.quote,
+      }));
+      storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
+    } catch (error) {
+      console.warn("Could not load signed archive from Supabase", error);
+    }
+  }
+
+  async function saveSignedQuoteToSupabase(record) {
+    if (!supabaseClient) return;
+
+    try {
+      const { error } = await supabaseClient.from("signed_quotes").upsert({
+        id: record.id,
+        signed_at: record.signedAt,
+        quote: record.quote,
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Could not save signed quote to Supabase", error);
+    }
+  }
+
+  async function deleteSignedQuoteFromSupabase(id) {
+    if (!supabaseClient || !id) return;
+
+    try {
+      const { error } = await supabaseClient.from("signed_quotes").delete().eq("id", id);
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Could not delete signed quote from Supabase", error);
+    }
+  }
+
+  async function saveTemplateSettingsToSupabase(settings) {
+    if (!supabaseClient) return;
+
+    try {
+      const { error } = await supabaseClient.from("template_settings").upsert({
+        id: "default",
+        settings,
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Could not save template settings to Supabase", error);
+    }
+  }
+
+  async function resetTemplateSettingsInSupabase() {
+    if (!supabaseClient) return;
+
+    try {
+      const { error } = await supabaseClient.from("template_settings").delete().eq("id", "default");
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Could not reset template settings in Supabase", error);
     }
   }
 
