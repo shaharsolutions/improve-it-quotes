@@ -1587,6 +1587,7 @@
   }
 
   async function sendSignedQuote() {
+    const sendButton = document.getElementById("sendSignedQuote");
     if (!quote.clientSignerName.trim()) {
       await showAppAlert("חסרים פרטי חתימה", "יש למלא שם חותם לפני שליחת ההצעה החתומה.");
       return;
@@ -1603,18 +1604,29 @@
       if (dateField) dateField.value = quote.clientSignatureDate;
     }
 
-    const archive = readSignedArchive();
-    const signedRecord = {
-      id: `${quote.quoteNumber || "quote"}-${Date.now()}`,
-      signedAt: new Date().toISOString(),
-      quote: normalizeQuote(quote),
-    };
-    archive.unshift(signedRecord);
-    storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
-    await saveSignedQuoteToSupabase(signedRecord);
-    await saveSignedQuoteToLocalServer(signedRecord);
-    renderPreview();
-    await showAppAlert("ההצעה נשמרה", "ההצעה החתומה נשמרה במאגר ההצעות החתומות.");
+    sendButton.disabled = true;
+    sendButton.textContent = "שולח חתימה...";
+
+    try {
+      const archive = readSignedArchive();
+      const signedRecord = {
+        id: `${quote.quoteNumber || "quote"}-${Date.now()}`,
+        signedAt: new Date().toISOString(),
+        quote: normalizeQuote(quote),
+      };
+      archive.unshift(signedRecord);
+      storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
+      await saveSignedQuoteToSupabase(signedRecord);
+      await saveSignedQuoteToLocalServer(signedRecord);
+      renderPreview();
+      await showAppAlert("ההצעה נשמרה", "ההצעה החתומה נשמרה במאגר ההצעות החתומות.");
+    } catch (error) {
+      console.error("Could not send signed quote", error);
+      await showAppAlert("לא ניתן לשלוח חתימה", "לא הצלחנו לשמור את ההצעה החתומה. נסו שוב בעוד רגע.");
+    } finally {
+      sendButton.disabled = false;
+      sendButton.textContent = "מאשר/ת את ההצעה ושולח/ת חתימה";
+    }
   }
 
   async function showSignedArchive() {
@@ -1816,6 +1828,8 @@
   }
 
   async function syncSignedArchiveFromLocalServer() {
+    if (!shouldUseLocalServer()) return;
+
     try {
       const response = await fetch(LOCAL_SIGNED_ARCHIVE_URL);
       if (!response.ok) throw new Error(`Local signed archive failed: ${response.status}`);
@@ -1842,6 +1856,8 @@
   }
 
   async function saveSignedQuoteToLocalServer(record) {
+    if (!shouldUseLocalServer()) return;
+
     try {
       const response = await fetch(LOCAL_SIGNED_ARCHIVE_URL, {
         method: "POST",
@@ -1867,6 +1883,7 @@
 
   async function deleteSignedQuoteFromLocalServer(id) {
     if (!id) return;
+    if (!shouldUseLocalServer()) return;
 
     try {
       const response = await fetch(`${LOCAL_SIGNED_ARCHIVE_URL}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -1924,6 +1941,8 @@
   }
 
   async function saveSharedQuoteToLocalServer(id, payload) {
+    if (!shouldUseLocalServer()) return false;
+
     try {
       const response = await fetch(LOCAL_SHARED_QUOTE_URL, {
         method: "POST",
@@ -1939,6 +1958,8 @@
   }
 
   async function readSharedQuoteFromLocalServer(id) {
+    if (!shouldUseLocalServer()) return null;
+
     try {
       const response = await fetch(`${LOCAL_SHARED_QUOTE_URL}?id=${encodeURIComponent(id)}`);
       if (!response.ok) throw new Error(`Local shared quote load failed: ${response.status}`);
@@ -1948,6 +1969,10 @@
       console.warn("Could not load shared quote from local server", error);
       return null;
     }
+  }
+
+  function shouldUseLocalServer() {
+    return ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
   }
 
   async function saveTemplateSettingsToSupabase(settings) {
