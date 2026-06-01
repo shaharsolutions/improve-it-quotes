@@ -36,7 +36,17 @@ if (result.error) {
   throw result.error;
 }
 
-process.exit(result.status || 0);
+if (result.status !== 0) {
+  process.exit(result.status || 1);
+}
+
+const linkResult = spawnSync("python3", [resolve(root, "scripts/fix-pdf-links.py"), output], { stdio: "inherit" });
+
+if (linkResult.error) {
+  throw linkResult.error;
+}
+
+process.exit(linkResult.status || 0);
 
 function findChrome() {
   const candidates = [
