@@ -1032,6 +1032,10 @@
   function renderClientLogoEditorRow(logo, index) {
     return `
       <div class="client-logo-item" data-client-logo-index="${index}">
+        <div class="client-logo-order" aria-label="שינוי סדר">
+          <button type="button" title="העבר למעלה" aria-label="העבר את ${escapeAttr(logo.name || "הלוגו")} למעלה" data-move-client-logo="-1" ${index === 0 ? "disabled" : ""}>↑</button>
+          <button type="button" title="העבר למטה" aria-label="העבר את ${escapeAttr(logo.name || "הלוגו")} למטה" data-move-client-logo="1" ${index === quote.clientLogos.length - 1 ? "disabled" : ""}>↓</button>
+        </div>
         <div class="client-logo-thumb">
           ${logo.src ? `<img src="${escapeAttr(logo.src)}" alt="${escapeAttr(logo.name || "לוגו לקוח")}" />` : ""}
         </div>
@@ -1095,10 +1099,28 @@
   }
 
   function handleClientLogoClick(event) {
+    const moveButton = event.target.closest("[data-move-client-logo]");
+    if (moveButton) {
+      moveClientLogo(moveButton.closest("[data-client-logo-index]"), Number(moveButton.dataset.moveClientLogo));
+      return;
+    }
+
     const removeButton = event.target.closest("[data-remove-client-logo]");
     if (!removeButton) return;
 
     quote.clientLogos.splice(Number(removeButton.dataset.removeClientLogo), 1);
+    saveClientLogoSettings();
+    renderClientLogosEditor();
+    renderPreview();
+  }
+
+  function moveClientLogo(row, direction) {
+    const fromIndex = Number(row?.dataset.clientLogoIndex);
+    const toIndex = fromIndex + direction;
+    if (!Number.isInteger(fromIndex) || toIndex < 0 || toIndex >= quote.clientLogos.length) return;
+
+    const [logo] = quote.clientLogos.splice(fromIndex, 1);
+    quote.clientLogos.splice(toIndex, 0, logo);
     saveClientLogoSettings();
     renderClientLogosEditor();
     renderPreview();

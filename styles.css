@@ -642,13 +642,32 @@ select:focus {
 
 .client-logo-item {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) minmax(0, 1.2fr) 70px;
+  grid-template-columns: 34px 72px minmax(0, 1fr) minmax(0, 1.2fr) 70px;
   gap: 8px;
   align-items: end;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #f8fbfd;
+}
+
+.client-logo-order {
+  display: grid;
+  gap: 4px;
+  align-self: center;
+}
+
+.client-logo-order button {
+  width: 28px;
+  min-height: 24px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.client-logo-order button:disabled {
+  opacity: 0.35;
+  cursor: default;
 }
 
 .client-logo-thumb {
@@ -668,7 +687,7 @@ select:focus {
 }
 
 .client-logo-file {
-  grid-column: 2 / 3;
+  grid-column: 3 / 4;
 }
 
 .client-logo-size input {
