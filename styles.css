@@ -215,9 +215,18 @@ button.is-confirmed {
 
 .salesperson-settings-fields {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.3fr) auto;
+  grid-template-columns: minmax(150px, 0.8fr) minmax(180px, 1fr) minmax(220px, 1.2fr) repeat(3, max-content);
   gap: 10px;
   align-items: end;
+}
+
+.salesperson-settings-fields > label.wide {
+  grid-column: auto;
+}
+
+.salesperson-settings-fields > button {
+  justify-self: start;
+  white-space: nowrap;
 }
 
 .template-settings-card {

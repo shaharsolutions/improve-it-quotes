@@ -67,6 +67,10 @@
             <p>פרטי יועץ המכירות שיופיעו בחתימת ההצעה.</p>
           </div>
           <div class="salesperson-settings-fields">
+            <label class="wide">
+              בחירת יועץ
+              <select id="salespersonSelect"></select>
+            </label>
             <label>
               שם
               <input id="salespersonName" type="text" />
@@ -75,6 +79,8 @@
               תפקיד
               <input id="salespersonTitle" type="text" />
             </label>
+            <button type="button" class="compact" id="addSalespersonSettings">יועץ חדש</button>
+            <button type="button" class="compact danger" id="deleteSalespersonSettings">מחיקה</button>
             <button type="button" class="compact" id="resetSalespersonSettings">איפוס</button>
           </div>
         </article>
@@ -342,6 +348,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260601-logo-editor-layout" defer></script>
+    <script src="src/app.js?v=20260601-salespeople-list-db" defer></script>
   </body>
 </html>

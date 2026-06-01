@@ -78,6 +78,7 @@ window.IMPROVE_IT_SUPABASE = {
 - הצעות חתומות בטבלה `signed_quotes`
 - הגדרות פורמטים בטבלה `template_settings`
 - לוגואים של לקוחות בטבלה `client_logo_settings`
+- יועצי מכירות והיועץ הנבחר בטבלה `salesperson_settings`
 
 הערה: הקובץ `schema.sql` כולל מדיניות RLS פתוחה ל-`anon`, כדי שהאפליקציה הסטטית תוכל לקרוא ולכתוב. לפרודקשן מומלץ להוסיף אימות משתמשים או API צד-שרת.
 

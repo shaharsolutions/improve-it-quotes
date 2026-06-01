@@ -7,8 +7,14 @@
   const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
   const DEFAULT_SALESPERSON_SETTINGS = {
-    name: "איש קשר לדוגמה",
-    title: "תפקיד לדוגמה, Improve-IT",
+    selectedId: "default",
+    advisors: [
+      {
+        id: "default",
+        name: "איש קשר לדוגמה",
+        title: "תפקיד לדוגמה, Improve-IT",
+      },
+    ],
   };
   const LMS_SINGLE_COURSE_TIERS = [
     { maxUsers: 60, price: 2940 },
@@ -175,14 +181,14 @@
   const sampleQuote = {
     templateId: DEFAULT_TEMPLATE_ID,
     quoteNumber: "VER1",
-    quoteDate: "2024-07-08",
+    quoteDate: "",
     validDays: 30,
     clientCompany: "ארגון לדוגמה",
     contactName: "איש קשר לדוגמה",
     contactTitle: "תפקיד לדוגמה",
     subject: "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור ארגון לדוגמה",
-    signatoryName: DEFAULT_SALESPERSON_SETTINGS.name,
-    signatoryTitle: DEFAULT_SALESPERSON_SETTINGS.title,
+    signatoryName: DEFAULT_SALESPERSON_SETTINGS.advisors[0].name,
+    signatoryTitle: DEFAULT_SALESPERSON_SETTINGS.advisors[0].title,
     clientSignerName: "",
     clientSignerTitle: "",
     clientSignerCompany: "",
@@ -213,7 +219,7 @@
     discountPercent: 5,
     discountDisplayMode: "percent",
     discountTitle: "הנחות",
-    discountValidUntil: "2024-07-25",
+    discountValidUntil: "2024-07-31",
     backgroundText:
       "ארגון לדוגמה בוחן בימים אלה את האפשרות לשילוב של לומדות מדף עבור עובדי הארגון, כולל שימוש במערכת LMS.",
     solutionText:
@@ -246,6 +252,7 @@
   const signedArchivePanel = document.getElementById("signedArchivePanel");
   const signedArchiveList = document.getElementById("signedArchiveList");
   const settingsPanel = document.getElementById("settingsPanel");
+  const salespersonSelectField = document.getElementById("salespersonSelect");
   const salespersonNameField = document.getElementById("salespersonName");
   const salespersonTitleField = document.getElementById("salespersonTitle");
   const templateSettingsList = document.getElementById("templateSettingsList");
@@ -276,7 +283,7 @@
     setupSupabase();
     applyTemplateSettings(await readTemplateSettings());
     clientLogoSettings = await readClientLogoSettings();
-    salespersonSettings = readSalespersonSettings();
+    salespersonSettings = await readSalespersonSettings();
     quote = normalizeQuote(await readInitialQuote());
     if (!isClientMode) {
       applySalespersonSettingsToQuote();
@@ -350,8 +357,11 @@
       settingsPanel.hidden = true;
     });
     document.getElementById("resetTemplateSettings").addEventListener("click", resetTemplateSettings);
+    salespersonSelectField.addEventListener("change", handleSalespersonSelectionChange);
     salespersonNameField.addEventListener("input", handleSalespersonSettingsInput);
     salespersonTitleField.addEventListener("input", handleSalespersonSettingsInput);
+    document.getElementById("addSalespersonSettings").addEventListener("click", addSalespersonSettings);
+    document.getElementById("deleteSalespersonSettings").addEventListener("click", deleteSalespersonSettings);
     document.getElementById("resetSalespersonSettings").addEventListener("click", resetSalespersonSettings);
     document.getElementById("addTemplateSettings").addEventListener("click", addTemplateSettings);
     templateSettingsList.addEventListener("input", handleTemplateSettingsInput);
@@ -409,6 +419,7 @@
     const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
     const merged = { ...sampleQuote, ...(raw || {}) };
     merged.templateId = TEMPLATE_DEFINITIONS[merged.templateId] ? merged.templateId : getFallbackTemplateId();
+    merged.quoteDate = parseIsoDate(merged.quoteDate) ? merged.quoteDate : todayIsoDate();
     merged.validDays = numberOr(merged.validDays, sampleQuote.validDays);
     merged.users = numberOr(merged.users, sampleQuote.users);
     merged.courseCount = Math.max(0, Math.round(numberOr(merged.courseCount, 0)));
@@ -417,6 +428,7 @@
     merged.discountDisplayMode = ["percent", "amount"].includes(merged.discountDisplayMode)
       ? merged.discountDisplayMode
       : sampleQuote.discountDisplayMode;
+    merged.discountValidUntil = monthEndIsoDate(merged.quoteDate);
     merged.pricingPlanLabel = merged.pricingPlanLabel || sampleQuote.pricingPlanLabel;
     merged.pricingIntroText = merged.pricingIntroText || "";
     merged.pricingOptionLabels = {
@@ -539,13 +551,58 @@
 
   function normalizeSalespersonSettings(raw = {}) {
     raw = raw || {};
+    const rawAdvisors = Array.isArray(raw.advisors)
+      ? raw.advisors
+      : raw.name || raw.title
+        ? [raw]
+        : DEFAULT_SALESPERSON_SETTINGS.advisors;
+    const advisors = rawAdvisors.map(normalizeSalespersonAdvisor).filter((advisor) => advisor.name);
+    if (!advisors.length) {
+      advisors.push(...DEFAULT_SALESPERSON_SETTINGS.advisors.map(normalizeSalespersonAdvisor));
+    }
+    const selectedId = advisors.some((advisor) => advisor.id === raw.selectedId) ? raw.selectedId : advisors[0].id;
+    return { selectedId, advisors };
+  }
+
+  function normalizeSalespersonAdvisor(raw = {}) {
+    const fallback = DEFAULT_SALESPERSON_SETTINGS.advisors[0];
+    const name = String(raw.name || fallback.name).trim();
     return {
-      name: String(raw.name || DEFAULT_SALESPERSON_SETTINGS.name).trim() || DEFAULT_SALESPERSON_SETTINGS.name,
-      title: String(raw.title || DEFAULT_SALESPERSON_SETTINGS.title).trim() || DEFAULT_SALESPERSON_SETTINGS.title,
+      id: String(raw.id || createId("salesperson")).trim(),
+      name,
+      title: String(raw.title || fallback.title).trim(),
     };
   }
 
-  function readSalespersonSettings() {
+  function selectedSalespersonAdvisor(settings = salespersonSettings) {
+    const source = settings?.advisors ? settings : normalizeSalespersonSettings(settings);
+    return source.advisors.find((advisor) => advisor.id === source.selectedId) || source.advisors[0];
+  }
+
+  async function readSalespersonSettings() {
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("salesperson_settings")
+          .select("settings")
+          .eq("id", "default")
+          .maybeSingle();
+        if (error) throw error;
+        if (data?.settings) {
+          const settings = normalizeSalespersonSettings(data.settings);
+          storageSet(SALESPERSON_SETTINGS_KEY, JSON.stringify(settings));
+          return settings;
+        }
+
+        const defaultSettings = normalizeSalespersonSettings();
+        await saveSalespersonSettingsToSupabase(defaultSettings);
+        storageSet(SALESPERSON_SETTINGS_KEY, JSON.stringify(defaultSettings));
+        return defaultSettings;
+      } catch (error) {
+        console.warn("Could not load salesperson settings from Supabase", error);
+      }
+    }
+
     try {
       const stored = storageGet(SALESPERSON_SETTINGS_KEY);
       return normalizeSalespersonSettings(stored ? JSON.parse(stored) : null);
@@ -556,25 +613,78 @@
   }
 
   function saveSalespersonSettings() {
+    salespersonSettings = normalizeSalespersonSettings(salespersonSettings);
     storageSet(SALESPERSON_SETTINGS_KEY, JSON.stringify(salespersonSettings));
+    saveSalespersonSettingsToSupabase(salespersonSettings);
   }
 
   function populateSalespersonSettingsForm() {
-    salespersonNameField.value = salespersonSettings.name;
-    salespersonTitleField.value = salespersonSettings.title;
+    const selectedAdvisor = selectedSalespersonAdvisor();
+    salespersonSelectField.innerHTML = salespersonSettings.advisors
+      .map((advisor) => `<option value="${escapeAttr(advisor.id)}">${escapeHtml(advisor.name)}</option>`)
+      .join("");
+    salespersonSelectField.value = salespersonSettings.selectedId;
+    salespersonNameField.value = selectedAdvisor.name;
+    salespersonTitleField.value = selectedAdvisor.title;
   }
 
   function applySalespersonSettingsToQuote() {
-    quote.signatoryName = salespersonSettings.name;
-    quote.signatoryTitle = salespersonSettings.title;
+    const selectedAdvisor = selectedSalespersonAdvisor();
+    quote.signatoryName = selectedAdvisor.name;
+    quote.signatoryTitle = selectedAdvisor.title;
+  }
+
+  function handleSalespersonSelectionChange() {
+    salespersonSettings.selectedId = salespersonSelectField.value;
+    saveSalespersonSettings();
+    populateSalespersonSettingsForm();
+    applySalespersonSettingsToQuote();
+    populateForm();
+    renderPreview();
   }
 
   function handleSalespersonSettingsInput() {
-    salespersonSettings = normalizeSalespersonSettings({
-      name: salespersonNameField.value,
-      title: salespersonTitleField.value,
-    });
+    const selectedAdvisor = selectedSalespersonAdvisor();
+    selectedAdvisor.name = salespersonNameField.value.trim() || DEFAULT_SALESPERSON_SETTINGS.advisors[0].name;
+    selectedAdvisor.title = salespersonTitleField.value.trim() || DEFAULT_SALESPERSON_SETTINGS.advisors[0].title;
     saveSalespersonSettings();
+    applySalespersonSettingsToQuote();
+    populateSalespersonSettingsForm();
+    populateForm();
+    renderPreview();
+  }
+
+  function addSalespersonSettings() {
+    const advisor = {
+      id: createId("salesperson"),
+      name: "יועץ מכירות חדש",
+      title: "תפקיד, Improve-IT",
+    };
+    salespersonSettings.advisors.push(advisor);
+    salespersonSettings.selectedId = advisor.id;
+    saveSalespersonSettings();
+    populateSalespersonSettingsForm();
+    applySalespersonSettingsToQuote();
+    populateForm();
+    renderPreview();
+    salespersonNameField.focus();
+    salespersonNameField.select();
+  }
+
+  async function deleteSalespersonSettings() {
+    if (salespersonSettings.advisors.length <= 1) {
+      await showAppAlert("לא ניתן למחוק", "חייב להישאר לפחות יועץ מכירות אחד.");
+      return;
+    }
+
+    const selectedAdvisor = selectedSalespersonAdvisor();
+    const confirmed = await showAppConfirm("מחיקת יועץ מכירות", `למחוק את "${selectedAdvisor.name}" מהרשימה?`, "מחיקה");
+    if (!confirmed) return;
+
+    salespersonSettings.advisors = salespersonSettings.advisors.filter((advisor) => advisor.id !== selectedAdvisor.id);
+    salespersonSettings.selectedId = salespersonSettings.advisors[0].id;
+    saveSalespersonSettings();
+    populateSalespersonSettingsForm();
     applySalespersonSettingsToQuote();
     populateForm();
     renderPreview();
@@ -582,7 +692,7 @@
 
   function resetSalespersonSettings() {
     salespersonSettings = normalizeSalespersonSettings();
-    storageRemove(SALESPERSON_SETTINGS_KEY);
+    saveSalespersonSettings();
     populateSalespersonSettingsForm();
     applySalespersonSettingsToQuote();
     populateForm();
@@ -858,11 +968,17 @@
       quote[field.name] = field.value;
     }
 
+    if (field.name === "quoteDate") {
+      quote.discountValidUntil = monthEndIsoDate(quote.quoteDate);
+      if (form.elements.discountValidUntil) {
+        form.elements.discountValidUntil.value = quote.discountValidUntil;
+      }
+    }
+
     if (field.name === "signatoryName" || field.name === "signatoryTitle") {
-      salespersonSettings = normalizeSalespersonSettings({
-        name: quote.signatoryName,
-        title: quote.signatoryTitle,
-      });
+      const selectedAdvisor = selectedSalespersonAdvisor();
+      selectedAdvisor.name = quote.signatoryName;
+      selectedAdvisor.title = quote.signatoryTitle;
       saveSalespersonSettings();
       populateSalespersonSettingsForm();
     }
@@ -1732,6 +1848,21 @@
       if (error) throw error;
     } catch (error) {
       console.warn("Could not save template settings to Supabase", error);
+    }
+  }
+
+  async function saveSalespersonSettingsToSupabase(settings) {
+    if (!supabaseClient) return;
+
+    try {
+      const { error } = await supabaseClient.from("salesperson_settings").upsert({
+        id: "default",
+        settings: normalizeSalespersonSettings(settings),
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Could not save salesperson settings to Supabase", error);
     }
   }
 
@@ -2639,6 +2770,28 @@
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+  }
+
+  function createId(prefix) {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function monthEndIsoDate(value) {
+    const date = parseIsoDate(value) || parseIsoDate(todayIsoDate());
+    return new Date(Date.UTC(date.year, date.month, 0)).toISOString().slice(0, 10);
+  }
+
+  function parseIsoDate(value) {
+    const match = String(value || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return null;
+
+    const year = Number(match[1]);
+    const month = Number(match[2]);
+    const day = Number(match[3]);
+    if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+
+    return { year, month, day };
   }
 
   function escapeHtml(value) {

@@ -17,9 +17,16 @@ create table if not exists public.client_logo_settings (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.salesperson_settings (
+  id text primary key default 'default',
+  settings jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
 alter table public.signed_quotes enable row level security;
 alter table public.template_settings enable row level security;
 alter table public.client_logo_settings enable row level security;
+alter table public.salesperson_settings enable row level security;
 
 drop policy if exists "signed quotes are publicly readable" on public.signed_quotes;
 create policy "signed quotes are publicly readable"
@@ -79,6 +86,25 @@ with check (id = 'default');
 drop policy if exists "client logos can be updated from the app" on public.client_logo_settings;
 create policy "client logos can be updated from the app"
 on public.client_logo_settings for update
+to anon
+using (id = 'default')
+with check (id = 'default');
+
+drop policy if exists "salesperson settings are publicly readable" on public.salesperson_settings;
+create policy "salesperson settings are publicly readable"
+on public.salesperson_settings for select
+to anon
+using (true);
+
+drop policy if exists "salesperson settings can be saved from the app" on public.salesperson_settings;
+create policy "salesperson settings can be saved from the app"
+on public.salesperson_settings for insert
+to anon
+with check (id = 'default');
+
+drop policy if exists "salesperson settings can be updated from the app" on public.salesperson_settings;
+create policy "salesperson settings can be updated from the app"
+on public.salesperson_settings for update
 to anon
 using (id = 'default')
 with check (id = 'default');
