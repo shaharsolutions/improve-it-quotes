@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>מחולל הצעות מחיר | Improve-IT</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260525-pdf-toc-links" />
   </head>
   <body>
     <div class="app-shell">
@@ -61,6 +61,23 @@
             <button type="button" class="compact" id="closeSettings">סגירה</button>
           </div>
         </div>
+        <article class="salesperson-settings-card" id="salespersonSettings">
+          <div>
+            <h3>יועץ מכירות</h3>
+            <p>פרטי יועץ המכירות שיופיעו בחתימת ההצעה.</p>
+          </div>
+          <div class="salesperson-settings-fields">
+            <label>
+              שם
+              <input id="salespersonName" type="text" />
+            </label>
+            <label>
+              תפקיד
+              <input id="salespersonTitle" type="text" />
+            </label>
+            <button type="button" class="compact" id="resetSalespersonSettings">איפוס</button>
+          </div>
+        </article>
         <div id="templateSettingsList" class="template-settings-list"></div>
       </section>
 
@@ -99,7 +116,7 @@
                   <input name="subject" type="text" />
                 </label>
                 <label>
-                  שם חותם
+                  שם יועץ מכירות
                   <input name="signatoryName" type="text" />
                 </label>
                 <label>
@@ -117,7 +134,7 @@
                   <input name="users" type="number" min="1" step="1" />
                 </label>
                 <label>
-                  מספר לומדות
+                  מספר לומדות בחבילה
                   <input name="courseCount" type="number" min="0" step="1" />
                 </label>
                 <label>
@@ -127,6 +144,13 @@
                 <label>
                   הנחה %
                   <input name="discountPercent" type="number" min="0" max="100" step="0.5" />
+                </label>
+                <label>
+                  הצגת הנחה בטבלה
+                  <select name="discountDisplayMode">
+                    <option value="percent">כאחוזים</option>
+                    <option value="amount">כסכום הנחה</option>
+                  </select>
                 </label>
                 <label>
                   תוקף הנחה
@@ -142,6 +166,10 @@
                     <option value="false">ללא טבלת סה"כ</option>
                     <option value="true">עם טבלת סה"כ</option>
                   </select>
+                </label>
+                <label class="checkbox-inline">
+                  <span>איחוד הערות לומדות</span>
+                  <input name="mergeCourseNotes" type="checkbox" />
                 </label>
                 <label class="wide">
                   כותרת הנחה
@@ -253,12 +281,19 @@
                   </div>
                 </div>
                 <textarea id="sectionEditorText" rows="8"></textarea>
+                <div class="client-logos-editor" id="clientLogosEditor" hidden>
+                  <div class="section-heading-row">
+                    <h3>לוגואים בסעיף</h3>
+                    <button type="button" class="compact" id="addClientLogo">הוספת לוגו</button>
+                  </div>
+                  <div id="clientLogosList" class="client-logos-list"></div>
+                </div>
               </div>
             </section>
 
             <section class="editor-section client-signature-section">
               <h2>חתימת לקוח</h2>
-              <p class="client-sign-help">לאחר מילוי הפרטים וחתימה, יש ללחוץ על `שלח הצעה חתומה`.</p>
+              <p class="client-sign-help">לאחר מילוי הפרטים וחתימה, יש ללחוץ על אישור ושליחת חתימה.</p>
               <div class="field-grid">
                 <label>
                   שם החותם
@@ -284,7 +319,7 @@
                 </div>
               </div>
             </section>
-            <button type="button" class="primary client-only client-signature-submit" id="sendSignedQuote">שלח הצעה חתומה</button>
+            <button type="button" class="primary client-only client-signature-submit" id="sendSignedQuote">מאשר/ת את ההצעה ושולח/ת חתימה</button>
           </form>
         </aside>
 
@@ -307,6 +342,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js" defer></script>
+    <script src="src/app.js?v=20260601-lms-before-courses" defer></script>
   </body>
 </html>

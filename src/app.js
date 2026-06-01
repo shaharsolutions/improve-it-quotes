@@ -2,6 +2,57 @@
   const STORAGE_KEY = "improve-it-quote-generator";
   const SIGNED_ARCHIVE_KEY = "improve-it-signed-quotes";
   const TEMPLATE_SETTINGS_KEY = "improve-it-template-settings";
+  const SALESPERSON_SETTINGS_KEY = "improve-it-salesperson-settings";
+  const CLIENT_LOGO_SETTINGS_KEY = "improve-it-client-logo-settings";
+  const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
+  const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
+  const DEFAULT_SALESPERSON_SETTINGS = {
+    name: "איש קשר לדוגמה",
+    title: "תפקיד לדוגמה, Improve-IT",
+  };
+  const LMS_SINGLE_COURSE_TIERS = [
+    { maxUsers: 60, price: 2940 },
+    { maxUsers: 90, price: 3600 },
+    { maxUsers: 120, price: 3840 },
+    { maxUsers: 150, price: 4050 },
+    { maxUsers: 180, price: 4900 },
+    { maxUsers: 210, price: 4620 },
+    { maxUsers: 250, price: 4900 },
+    { maxUsers: 300, price: 5250 },
+    { maxUsers: 350, price: 5500 },
+    { maxUsers: 400, price: 5900 },
+    { maxUsers: 450, price: 6200 },
+    { maxUsers: 500, price: 6500 },
+    { maxUsers: 550, price: 6900 },
+    { maxUsers: 600, price: 7100 },
+    { maxUsers: 650, price: 7300 },
+    { maxUsers: 700, price: 7500 },
+    { maxUsers: 750, price: 7800 },
+    { maxUsers: 800, price: 8100 },
+    { maxUsers: 850, price: 8300 },
+    { maxUsers: 900, price: 8500 },
+    { maxUsers: 950, price: 8800 },
+    { maxUsers: 1000, price: 9100 },
+  ];
+  const LMS_THREE_COURSE_PACKAGE_TIERS = [
+    { maxUsers: 180, price: 4900 },
+    { maxUsers: 210, price: 5500 },
+    { maxUsers: 250, price: 5900 },
+    { maxUsers: 300, price: 6300 },
+    { maxUsers: 350, price: 6400 },
+    { maxUsers: 400, price: 6600 },
+    { maxUsers: 450, price: 6900 },
+    { maxUsers: 500, price: 7200 },
+    { maxUsers: 550, price: 7600 },
+    { maxUsers: 600, price: 7900 },
+    { maxUsers: 650, price: 8200 },
+    { maxUsers: 700, price: 8500 },
+  ];
+  const SHELF_COURSE_GROUP_A_PACKAGE_PRICES = {
+    1: 4900,
+    2: 7500,
+    3: 8900,
+  };
   const memoryStorage = new Map();
   let supabaseClient = null;
   const TEMPLATE_DEFINITIONS = {
@@ -22,33 +73,13 @@
       },
       sectionDefinitions: [
         ["showCompanyProfile", "profile", "פרופיל חברה"],
+        ["showClients", "clients", "לקוחות"],
         ["showBackground", "background", "רקע"],
         ["showSolution", "solution", "הפתרון המוצע - כללי"],
         ["showWorkProcess", "work", "תהליך העבודה המוצע"],
-        ["showPricing", "pricing", "תמחור ותכולת הלומדה"],
-      ],
-    },
-    shelfCoursesOnly: {
-      label: "לומדות מדף ללא LMS",
-      description: "פורמט להצעת שימוש בלומדות מדף, ללא הקמה וניהול של מערכת LMS.",
-      defaults: {
-        includeLms: false,
-        showCompanyProfile: true,
-        showClients: true,
-        showBackground: true,
-        showSolution: true,
-        showWorkProcess: true,
-        showPricing: true,
-        showTerms: true,
-        showCancellation: true,
-        pricingPlanLabel: "רכישת / שימוש בלומדות מדף",
-      },
-      sectionDefinitions: [
-        ["showCompanyProfile", "profile", "פרופיל חברה"],
-        ["showBackground", "background", "רקע"],
-        ["showSolution", "solution", "הפתרון המוצע - כללי"],
-        ["showWorkProcess", "work", "תהליך העבודה המוצע"],
-        ["showPricing", "pricing", "תמחור ותכולת הלומדה"],
+        ["showPricing", "pricing", "תמחור ותכולת ההצעה"],
+        ["showTerms", "terms", "תנאים כלליים"],
+        ["showCancellation", "cancellation", "נהלי ביטולים ועיכובים"],
       ],
     },
     shortCommercial: {
@@ -70,6 +101,7 @@
         ["showBackground", "background", "רקע"],
         ["showSolution", "solution", "הפתרון המוצע"],
         ["showPricing", "pricing", "תמחור"],
+        ["showTerms", "terms", "תנאים"],
       ],
     },
   };
@@ -100,6 +132,35 @@
     cancellationText:
       "על תכולה אשר תבוטל לפני תחילת העבודה הרשמית ייגבו 30% מסך המחיר המוזמן, למעט אם הועברו חומרים כלשהם למזמין; במקרה כזה תשולם העלות המלאה.\nתכולת עבודה אשר נכנסה לעבודה תשולם בהתאם לאבן הדרך הבאה בתוספת 20% מסך שארית ההזמנה.\nלא יתקיימו החזרים מאבני דרך ששולמו.\nכלל תכולות העבודה משפיעות האחת על השנייה; ביטול של תכולות עלול לגרור שינוי במחירים ליחידה של שאר התכולות המוזמנות, בכפוף להצעה זו ולשיקול דעתה הבלעדי של Improve-IT.",
   };
+  const LEGACY_CLIENT_LOGOS_SRC = "assets/brand/client-logos.png";
+  const DEFAULT_CLIENT_LOGOS = [
+    { name: "מאוחדת", src: "assets/brand/client-logos/meuhedet.png" },
+    { name: "כללית", src: "assets/brand/client-logos/clalit.png" },
+    { name: "משרד הבריאות", src: "assets/brand/client-logos/ministry-health.png" },
+    { name: "משרד הפנים", src: "assets/brand/client-logos/ministry-interior.png" },
+    { name: "משטרת ישראל", src: "assets/brand/client-logos/israel-police.png" },
+    { name: "ניצני הקריה", src: "assets/brand/client-logos/nitzanei-hakirya.png" },
+    { name: "כבאות והצלה לישראל", src: "assets/brand/client-logos/fire-rescue.png" },
+    { name: 'המרכז הרפואי תל-אביב ע"ש סוראסקי', src: "assets/brand/client-logos/sourasky-medical-center.png" },
+    { name: "ICL", src: "assets/brand/client-logos/icl.png" },
+    { name: "תנובה", src: "assets/brand/client-logos/tnuva.png" },
+    { name: "סופר-פארם", src: "assets/brand/client-logos/super-pharm.png" },
+    { name: "OPHIR Optics", src: "assets/brand/client-logos/ophir-optics.png" },
+    { name: "הפניקס", src: "assets/brand/client-logos/phoenix.png" },
+    { name: "שקל", src: "assets/brand/client-logos/shekel-group.png" },
+    { name: "שלמה ביטוח", src: "assets/brand/client-logos/shlomo-insurance.png" },
+    { name: "אל על", src: "assets/brand/client-logos/elal.png" },
+    { name: "אבן קיסר", src: "assets/brand/client-logos/caesarstone.png" },
+    { name: "איתוראן", src: "assets/brand/client-logos/ituran.png" },
+    { name: "IKEA", src: "assets/brand/client-logos/ikea.png" },
+    { name: "דואר ישראל", src: "assets/brand/client-logos/israel-post.png" },
+    { name: "טבע", src: "assets/brand/client-logos/teva.png" },
+    { name: "amdocs", src: "assets/brand/client-logos/amdocs.png" },
+    { name: "הראל", src: "assets/brand/client-logos/harel.png" },
+    { name: "בנק הפועלים", src: "assets/brand/client-logos/bank-hapoalim.png" },
+    { name: "דיסקונט", src: "assets/brand/client-logos/discount.png?v=20260601-crop" },
+    { name: "קבוצת בזן", src: "assets/brand/client-logos/bazan.png?v=20260601-crop", size: 135 },
+  ];
   const EDITABLE_SECTIONS = {
     profile: { title: "פרופיל חברה", field: "companyProfileText" },
     clients: { title: "לקוחות", field: "clientsText" },
@@ -116,18 +177,18 @@
     quoteNumber: "VER1",
     quoteDate: "2024-07-08",
     validDays: 30,
-    clientCompany: "אל-הר",
-    contactName: "אייל בן דיין",
-    contactTitle: "יועץ משפטי",
-    subject: "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור אל-הר",
-    signatoryName: "שחר כהן",
-    signatoryTitle: "יועץ פיתוח ומכירות למידה דיגיטלית, Improve-IT",
+    clientCompany: "ארגון לדוגמה",
+    contactName: "איש קשר לדוגמה",
+    contactTitle: "תפקיד לדוגמה",
+    subject: "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור ארגון לדוגמה",
+    signatoryName: DEFAULT_SALESPERSON_SETTINGS.name,
+    signatoryTitle: DEFAULT_SALESPERSON_SETTINGS.title,
     clientSignerName: "",
     clientSignerTitle: "",
     clientSignerCompany: "",
     clientSignatureDate: "",
     clientSignatureData: "",
-    pricingItems: [],
+    clientLogos: DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo })),
     pricingItemsEdited: false,
     users: 100,
     courseCount: 4,
@@ -136,6 +197,7 @@
     pricingIntroText: "",
     additionalUserPrice: 60,
     showTotals: false,
+    mergeCourseNotes: false,
     includeLms: true,
     bilingualCourse: false,
     includeHebrewVoiceover: true,
@@ -144,17 +206,18 @@
     pricingOptionLabels: {
       includeLms: "מערכת LMS בענן",
       bilingualCourse: "עברית ואנגלית",
-      includeHebrewVoiceover: "קריינות בעברית כלולה",
+      includeHebrewVoiceover: "קריינות בעברית",
       includeEnglishVoiceover: "קריינות באנגלית",
       includeTranslation: "תרגום",
     },
     discountPercent: 5,
+    discountDisplayMode: "percent",
     discountTitle: "הנחות",
     discountValidUntil: "2024-07-25",
     backgroundText:
-      "אל-הר בוחנים בימים אלה את האפשרות לשילוב של לומדות מדף עבור עובדי הארגון, כולל שימוש במערכת LMS.",
+      "ארגון לדוגמה בוחן בימים אלה את האפשרות לשילוב של לומדות מדף עבור עובדי הארגון, כולל שימוש במערכת LMS.",
     solutionText:
-      "הפתרון המוצע מתבסס על לומדות מדף אשר פונה למכנה הרחב של עובדי אל-הר.\n\nכל לומדה תכלול סימולציות ותרגולים במרבית הפרקים אשר יאפשרו לכל לומד להתקדם בקצב שלו תוך יצירת אינטראקציה ועניין במהלך הלימוד, כמו גם תרגום של נהלי העבודה להתמודדויות היומיומיות במידה ואלה נדרשות מן העובד, ופתרון סימולטיבי של מצבים אשר עשויים להתרחש במהלך יום העבודה.\n\nהאתגר המרכזי של תהליך הלימוד הנדרש נמצא ביכולת של העובדים לנתח בעצמם מקרים ודילמות בהתאם לתהליכי העבודה במידה והם נדרשים מעובדי אל-הר ובהתאם להנחיות הארגון.\n\nתהליך בניית הלומדה, סיפור המסגרת המלווה את תהליך הלמידה, החלקים הוויזואליים, כמו גם האינטראקציות האינטראקטיביות של הלומדה מהווים כלי תומך להתמודדות עם האתגר וליישום וביצוע ההתנהגות הנדרשת מן העובדים כאשר הם נדרשים לטפל בבעיות או באירועים באל-הר.",
+      "הפתרון המוצע מתבסס על לומדות מדף אשר פונה למכנה הרחב של עובדי ארגון לדוגמה.\n\nכל לומדה תכלול סימולציות ותרגולים במרבית הפרקים אשר יאפשרו לכל לומד להתקדם בקצב שלו תוך יצירת אינטראקציה ועניין במהלך הלימוד, כמו גם תרגום של נהלי העבודה להתמודדויות היומיומיות במידה ואלה נדרשות מן העובד, ופתרון סימולטיבי של מצבים אשר עשויים להתרחש במהלך יום העבודה.\n\nהאתגר המרכזי של תהליך הלימוד הנדרש נמצא ביכולת של העובדים לנתח בעצמם מקרים ודילמות בהתאם לתהליכי העבודה במידה והם נדרשים מעובדי ארגון לדוגמה ובהתאם להנחיות הארגון.\n\nתהליך בניית הלומדה, סיפור המסגרת המלווה את תהליך הלמידה, החלקים הוויזואליים, כמו גם האינטראקציות האינטראקטיביות של הלומדה מהווים כלי תומך להתמודדות עם האתגר וליישום וביצוע ההתנהגות הנדרשת מן העובדים כאשר הם נדרשים לטפל בבעיות או באירועים בארגון לדוגמה.",
     ...DEFAULT_SECTION_TEXTS,
     customItems: [],
     showCompanyProfile: true,
@@ -168,6 +231,9 @@
   };
 
   let quote = normalizeQuote(sampleQuote);
+  let salespersonSettings = normalizeSalespersonSettings();
+  let clientLogoSettings = DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo }));
+  let clientLogoSaveTimer = null;
   const isClientMode = getHashParam("mode") === "client";
 
   const form = document.getElementById("quoteForm");
@@ -180,10 +246,15 @@
   const signedArchivePanel = document.getElementById("signedArchivePanel");
   const signedArchiveList = document.getElementById("signedArchiveList");
   const settingsPanel = document.getElementById("settingsPanel");
+  const salespersonNameField = document.getElementById("salespersonName");
+  const salespersonTitleField = document.getElementById("salespersonTitle");
   const templateSettingsList = document.getElementById("templateSettingsList");
   const sectionEditor = document.getElementById("sectionEditor");
   const sectionEditorTitle = document.getElementById("sectionEditorTitle");
   const sectionEditorText = document.getElementById("sectionEditorText");
+  const clientLogosEditor = document.getElementById("clientLogosEditor");
+  const clientLogosList = document.getElementById("clientLogosList");
+  const addClientLogoButton = document.getElementById("addClientLogo");
   const closeSectionEditorButton = document.getElementById("closeSectionEditor");
   const resetSectionTextButton = document.getElementById("resetSectionText");
   const appDialog = document.getElementById("appDialog");
@@ -204,9 +275,16 @@
   async function init() {
     setupSupabase();
     applyTemplateSettings(await readTemplateSettings());
+    clientLogoSettings = await readClientLogoSettings();
+    salespersonSettings = readSalespersonSettings();
     quote = normalizeQuote(await readInitialQuote());
+    if (!isClientMode) {
+      applySalespersonSettingsToQuote();
+      applyClientLogoSettingsToQuote();
+    }
     document.body.classList.toggle("client-mode", isClientMode);
     populateTemplateOptions();
+    populateSalespersonSettingsForm();
     renderTemplateSettings();
     populateForm();
     renderCourseNameInputs();
@@ -223,6 +301,10 @@
     sectionEditorText.addEventListener("input", handleSectionEditorInput);
     closeSectionEditorButton.addEventListener("click", closeSectionEditor);
     resetSectionTextButton.addEventListener("click", resetActiveSectionText);
+    addClientLogoButton.addEventListener("click", addClientLogo);
+    clientLogosList.addEventListener("input", handleClientLogoInput);
+    clientLogosList.addEventListener("change", handleClientLogoInput);
+    clientLogosList.addEventListener("click", handleClientLogoClick);
     document.querySelectorAll("[data-section-edit]").forEach((button) => {
       button.addEventListener("click", () => openSectionEditor(button.dataset.sectionEdit));
     });
@@ -242,6 +324,8 @@
 
     document.getElementById("resetSample").addEventListener("click", () => {
       quote = normalizeQuote(sampleQuote);
+      applySalespersonSettingsToQuote();
+      applyClientLogoSettingsToQuote();
       storageRemove(STORAGE_KEY);
       populateForm();
       renderCourseNameInputs();
@@ -266,6 +350,9 @@
       settingsPanel.hidden = true;
     });
     document.getElementById("resetTemplateSettings").addEventListener("click", resetTemplateSettings);
+    salespersonNameField.addEventListener("input", handleSalespersonSettingsInput);
+    salespersonTitleField.addEventListener("input", handleSalespersonSettingsInput);
+    document.getElementById("resetSalespersonSettings").addEventListener("click", resetSalespersonSettings);
     document.getElementById("addTemplateSettings").addEventListener("click", addTemplateSettings);
     templateSettingsList.addEventListener("input", handleTemplateSettingsInput);
     templateSettingsList.addEventListener("change", handleTemplateSettingsInput);
@@ -274,8 +361,13 @@
       signedArchivePanel.hidden = true;
     });
     document.getElementById("sendSignedQuote").addEventListener("click", sendSignedQuote);
-    document.getElementById("printQuote").addEventListener("click", () => window.print());
+    document.getElementById("printQuote").addEventListener("click", showPrintPdfChoice);
     clearSignatureButton.addEventListener("click", clearSignature);
+
+    if (getHashParam("pdf") === "1" && !isClientMode) {
+      clearPdfAutoOpenFlag();
+      window.setTimeout(openPrintDialog, 350);
+    }
   }
 
   async function readInitialQuote() {
@@ -314,7 +406,7 @@
   }
 
   function normalizeQuote(raw) {
-    const hasManualPricingItems = Array.isArray(raw?.pricingItems);
+    const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
     const merged = { ...sampleQuote, ...(raw || {}) };
     merged.templateId = TEMPLATE_DEFINITIONS[merged.templateId] ? merged.templateId : getFallbackTemplateId();
     merged.validDays = numberOr(merged.validDays, sampleQuote.validDays);
@@ -322,6 +414,9 @@
     merged.courseCount = Math.max(0, Math.round(numberOr(merged.courseCount, 0)));
     merged.additionalUserPrice = numberOr(merged.additionalUserPrice, sampleQuote.additionalUserPrice);
     merged.discountPercent = numberOr(merged.discountPercent, 0);
+    merged.discountDisplayMode = ["percent", "amount"].includes(merged.discountDisplayMode)
+      ? merged.discountDisplayMode
+      : sampleQuote.discountDisplayMode;
     merged.pricingPlanLabel = merged.pricingPlanLabel || sampleQuote.pricingPlanLabel;
     merged.pricingIntroText = merged.pricingIntroText || "";
     merged.pricingOptionLabels = {
@@ -342,6 +437,7 @@
     merged.clientSignerCompany = merged.clientSignerCompany || "";
     merged.clientSignatureDate = merged.clientSignatureDate || "";
     merged.clientSignatureData = sanitizeSignatureData(merged.clientSignatureData);
+    merged.clientLogos = normalizeClientLogos(merged.clientLogos);
     merged.courseNames = Array.isArray(merged.courseNames)
       ? merged.courseNames.map((name) => String(name || "").trim())
       : String(merged.courseNames || "")
@@ -369,6 +465,7 @@
       "includeEnglishVoiceover",
       "includeTranslation",
       "showTotals",
+      "mergeCourseNotes",
       "showCompanyProfile",
       "showClients",
       "showBackground",
@@ -433,10 +530,63 @@
   }
 
   function showSettings() {
+    populateSalespersonSettingsForm();
     renderTemplateSettings();
     settingsPanel.hidden = false;
     sharePanel.hidden = true;
     signedArchivePanel.hidden = true;
+  }
+
+  function normalizeSalespersonSettings(raw = {}) {
+    raw = raw || {};
+    return {
+      name: String(raw.name || DEFAULT_SALESPERSON_SETTINGS.name).trim() || DEFAULT_SALESPERSON_SETTINGS.name,
+      title: String(raw.title || DEFAULT_SALESPERSON_SETTINGS.title).trim() || DEFAULT_SALESPERSON_SETTINGS.title,
+    };
+  }
+
+  function readSalespersonSettings() {
+    try {
+      const stored = storageGet(SALESPERSON_SETTINGS_KEY);
+      return normalizeSalespersonSettings(stored ? JSON.parse(stored) : null);
+    } catch (error) {
+      console.warn("Could not parse salesperson settings", error);
+      return normalizeSalespersonSettings();
+    }
+  }
+
+  function saveSalespersonSettings() {
+    storageSet(SALESPERSON_SETTINGS_KEY, JSON.stringify(salespersonSettings));
+  }
+
+  function populateSalespersonSettingsForm() {
+    salespersonNameField.value = salespersonSettings.name;
+    salespersonTitleField.value = salespersonSettings.title;
+  }
+
+  function applySalespersonSettingsToQuote() {
+    quote.signatoryName = salespersonSettings.name;
+    quote.signatoryTitle = salespersonSettings.title;
+  }
+
+  function handleSalespersonSettingsInput() {
+    salespersonSettings = normalizeSalespersonSettings({
+      name: salespersonNameField.value,
+      title: salespersonTitleField.value,
+    });
+    saveSalespersonSettings();
+    applySalespersonSettingsToQuote();
+    populateForm();
+    renderPreview();
+  }
+
+  function resetSalespersonSettings() {
+    salespersonSettings = normalizeSalespersonSettings();
+    storageRemove(SALESPERSON_SETTINGS_KEY);
+    populateSalespersonSettingsForm();
+    applySalespersonSettingsToQuote();
+    populateForm();
+    renderPreview();
   }
 
   function renderTemplateSettings() {
@@ -684,6 +834,7 @@
       "bilingualCourse",
       "includeHebrewVoiceover",
       "includeEnglishVoiceover",
+      "includeTranslation",
       "additionalUserPrice",
     ].includes(field.name);
 
@@ -707,7 +858,21 @@
       quote[field.name] = field.value;
     }
 
-    if (shouldRefreshPricingItems && !quote.pricingItemsEdited) {
+    if (field.name === "signatoryName" || field.name === "signatoryTitle") {
+      salespersonSettings = normalizeSalespersonSettings({
+        name: quote.signatoryName,
+        title: quote.signatoryTitle,
+      });
+      saveSalespersonSettings();
+      populateSalespersonSettingsForm();
+    }
+
+    if (["templateId", "courseCount", "includeLms"].includes(field.name)) {
+      syncPriceListDiscount();
+      populateForm();
+    }
+
+    if (shouldRefreshPricingItems) {
       resetPricingItems();
     }
 
@@ -753,12 +918,15 @@
     activeSectionEditorKey = sectionKey;
     sectionEditorTitle.textContent = `עריכת סעיף: ${config.title}`;
     sectionEditorText.value = getSectionEditorValue(config);
+    clientLogosEditor.hidden = sectionKey !== "clients";
+    if (sectionKey === "clients") renderClientLogosEditor();
     sectionEditor.hidden = false;
     sectionEditorText.focus();
   }
 
   function closeSectionEditor() {
     sectionEditor.hidden = true;
+    clientLogosEditor.hidden = true;
     activeSectionEditorKey = "";
   }
 
@@ -810,6 +978,189 @@
       const field = form.elements[fieldName];
       if (field) field.value = quote[fieldName] || "";
     });
+  }
+
+  function normalizeClientLogos(logos) {
+    const source = Array.isArray(logos) ? logos : DEFAULT_CLIENT_LOGOS;
+    const normalized = source
+      .map((logo) => ({
+        name: String(logo?.name || "").trim(),
+        src: versionClientLogoSrc(sanitizeClientLogoSrc(logo?.src)),
+        size: clampClientLogoSize(logo?.size ?? defaultClientLogoSize(logo)),
+      }))
+      .filter((logo) => logo.src);
+
+    if (normalized.length === 1 && normalized[0].src === LEGACY_CLIENT_LOGOS_SRC) {
+      return DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo }));
+    }
+
+    return normalized;
+  }
+
+  function sanitizeClientLogoSrc(value) {
+    const src = String(value || "").trim();
+    if (!src) return "";
+    if (/^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,[a-z0-9+/=]+$/i.test(src)) return src;
+    if (/^(https?:\/\/|assets\/|\.\/|\/)/i.test(src)) return src;
+    return "";
+  }
+
+  function versionClientLogoSrc(src) {
+    const cleanSrc = String(src || "").replace(/\?.*$/, "");
+    if (cleanSrc === "assets/brand/client-logos/discount.png" || cleanSrc === "assets/brand/client-logos/bazan.png") {
+      return `${cleanSrc}?v=20260601-crop`;
+    }
+    return src;
+  }
+
+  function clampClientLogoSize(value) {
+    return Math.min(180, Math.max(60, Math.round(numberOr(value, 100))));
+  }
+
+  function defaultClientLogoSize(logo) {
+    const src = String(logo?.src || "").replace(/\?.*$/, "");
+    if (src.endsWith("/bazan.png") || String(logo?.name || "").includes("בזן")) return 135;
+    return 100;
+  }
+
+  function renderClientLogosEditor() {
+    clientLogosList.innerHTML = quote.clientLogos.length
+      ? quote.clientLogos.map(renderClientLogoEditorRow).join("")
+      : `<p class="empty-note">לא הוגדרו לוגואים.</p>`;
+  }
+
+  function renderClientLogoEditorRow(logo, index) {
+    return `
+      <div class="client-logo-item" data-client-logo-index="${index}">
+        <div class="client-logo-thumb">
+          ${logo.src ? `<img src="${escapeAttr(logo.src)}" alt="${escapeAttr(logo.name || "לוגו לקוח")}" />` : ""}
+        </div>
+        <label>
+          שם לתיאור
+          <input data-client-logo-field="name" type="text" value="${escapeAttr(logo.name)}" />
+        </label>
+        <label>
+          מקור תמונה
+          <input data-client-logo-field="src" type="url" value="${escapeAttr(logo.src)}" />
+        </label>
+        <label class="client-logo-size">
+          גודל %
+          <input data-client-logo-field="size" type="number" min="60" max="180" step="5" value="${escapeAttr(logo.size)}" />
+        </label>
+        <label class="client-logo-file">
+          העלאת קובץ
+          <input data-client-logo-upload type="file" accept="image/*" />
+        </label>
+        <button type="button" class="danger" data-remove-client-logo="${index}">מחיקה</button>
+      </div>
+    `;
+  }
+
+  function addClientLogo() {
+    quote.clientLogos.push({ name: "לקוח חדש", src: "" });
+    queueClientLogoSettingsSave();
+    renderClientLogosEditor();
+    renderPreview();
+  }
+
+  async function handleClientLogoInput(event) {
+    const row = event.target.closest("[data-client-logo-index]");
+    if (!row) return;
+
+    const index = Number(row.dataset.clientLogoIndex);
+    const logo = quote.clientLogos[index];
+    if (!logo) return;
+
+    if (event.target.dataset.clientLogoField) {
+      const field = event.target.dataset.clientLogoField;
+      if (field === "src") {
+        logo.src = sanitizeClientLogoSrc(event.target.value);
+      } else if (field === "size") {
+        logo.size = clampClientLogoSize(event.target.value);
+      } else {
+        logo[field] = event.target.value;
+      }
+      queueClientLogoSettingsSave();
+      renderPreview();
+      return;
+    }
+
+    if (event.target.dataset.clientLogoUpload !== undefined && event.target.files?.[0]) {
+      logo.src = await readImageFileAsDataUrl(event.target.files[0]);
+      if (!logo.name.trim()) logo.name = event.target.files[0].name.replace(/\.[^.]+$/, "");
+      saveClientLogoSettings();
+      renderClientLogosEditor();
+      renderPreview();
+    }
+  }
+
+  function handleClientLogoClick(event) {
+    const removeButton = event.target.closest("[data-remove-client-logo]");
+    if (!removeButton) return;
+
+    quote.clientLogos.splice(Number(removeButton.dataset.removeClientLogo), 1);
+    saveClientLogoSettings();
+    renderClientLogosEditor();
+    renderPreview();
+  }
+
+  function readImageFileAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function readClientLogoSettings() {
+    if (supabaseClient) {
+      try {
+        const { data, error } = await supabaseClient
+          .from("client_logo_settings")
+          .select("logos")
+          .eq("id", "default")
+          .maybeSingle();
+        if (error) throw error;
+        if (Array.isArray(data?.logos)) {
+          const logos = normalizeClientLogos(data.logos);
+          storageSet(CLIENT_LOGO_SETTINGS_KEY, JSON.stringify(logos));
+          return logos;
+        }
+        const defaultLogos = normalizeClientLogos(DEFAULT_CLIENT_LOGOS);
+        await saveClientLogoSettingsToSupabase(defaultLogos);
+        storageSet(CLIENT_LOGO_SETTINGS_KEY, JSON.stringify(defaultLogos));
+        return defaultLogos;
+      } catch (error) {
+        console.warn("Could not load client logos from Supabase", error);
+      }
+    }
+
+    try {
+      const stored = storageGet(CLIENT_LOGO_SETTINGS_KEY);
+      if (stored) return normalizeClientLogos(JSON.parse(stored));
+    } catch (error) {
+      console.warn("Could not parse client logo settings", error);
+    }
+
+    return normalizeClientLogos(DEFAULT_CLIENT_LOGOS);
+  }
+
+  function applyClientLogoSettingsToQuote() {
+    quote.clientLogos = normalizeClientLogos(clientLogoSettings);
+  }
+
+  function saveClientLogoSettings() {
+    clientLogoSettings = normalizeClientLogos(quote.clientLogos);
+    storageSet(CLIENT_LOGO_SETTINGS_KEY, JSON.stringify(clientLogoSettings));
+    saveClientLogoSettingsToSupabase(clientLogoSettings);
+  }
+
+  function queueClientLogoSettingsSave() {
+    if (isClientMode) return;
+
+    window.clearTimeout(clientLogoSaveTimer);
+    clientLogoSaveTimer = window.setTimeout(saveClientLogoSettings, 350);
   }
 
   function applyTemplateDefaults() {
@@ -885,6 +1236,10 @@
     quote.pricingItemsEdited = false;
   }
 
+  function syncPriceListDiscount() {
+    quote.discountPercent = quote.includeLms && quote.courseCount >= 4 ? 5 : 0;
+  }
+
   async function showClientLink() {
     const createButton = document.getElementById("createClientLink");
     createButton.disabled = true;
@@ -943,6 +1298,71 @@
     }
 
     return `${window.location.origin}${window.location.pathname}`;
+  }
+
+  function openPrintDialog() {
+    window.print();
+  }
+
+  async function showPrintPdfChoice() {
+    const choice = await showAppDialog({
+      title: "הדפסה / PDF",
+      message: "בחרו האם לפתוח חלון הדפסה רגיל או ליצור PDF עם קישורים פעילים בתוכן העניינים.",
+      confirmText: "יצירת PDF",
+      confirmResult: "pdf",
+      cancelText: "הדפסה",
+      cancelResult: "print",
+      showCancel: true,
+    });
+
+    if (choice === "print") {
+      openPrintDialog();
+      return;
+    }
+
+    if (choice === "pdf") {
+      await openLinkedPdf();
+    }
+  }
+
+  async function openLinkedPdf() {
+    const pdfButton = document.getElementById("printQuote");
+    pdfButton.disabled = true;
+    pdfButton.textContent = "יוצר PDF...";
+
+    try {
+      window.location.href = await buildLinkedPdfUrl(normalizeQuote(quote));
+    } catch (error) {
+      console.error("Could not create linked PDF", error);
+      pdfButton.disabled = false;
+      pdfButton.textContent = "הדפסה / PDF";
+      showAppAlert("לא ניתן ליצור PDF", "ודאו שהשרת המקומי רץ בכתובת http://localhost:4173 ונסו שוב.");
+    }
+  }
+
+  async function buildLinkedPdfUrl(pdfQuote) {
+    const encoded = await compressQuotePayload(JSON.stringify(pdfQuote));
+    const params = new URLSearchParams({
+      filename: buildPdfFilename(pdfQuote),
+      save: "1",
+      z: encoded,
+    });
+    return `${PDF_RENDER_URL}?${params.toString()}`;
+  }
+
+  function buildPdfFilename(pdfQuote) {
+    const quoteNumber = String(pdfQuote.quoteNumber || "quote").trim() || "quote";
+    return `improve-it-${quoteNumber}.pdf`;
+  }
+
+  function clearPdfAutoOpenFlag() {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (!params.has("pdf")) return;
+
+    params.delete("pdf");
+    const nextHash = params.toString();
+    const nextUrl = `${window.location.pathname}${window.location.search}${nextHash ? `#${nextHash}` : ""}`;
+    window.history.replaceState(null, "", nextUrl);
   }
 
   async function copyClientLink() {
@@ -1014,12 +1434,14 @@
     archive.unshift(signedRecord);
     storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
     await saveSignedQuoteToSupabase(signedRecord);
+    await saveSignedQuoteToLocalServer(signedRecord);
     renderPreview();
-    await showAppAlert("ההצעה נשמרה", "ההצעה החתומה נשמרה במאגר ההצעות החתומות המקומי.");
+    await showAppAlert("ההצעה נשמרה", "ההצעה החתומה נשמרה במאגר ההצעות החתומות.");
   }
 
   async function showSignedArchive() {
     await syncSignedArchiveFromSupabase();
+    await syncSignedArchiveFromLocalServer();
     renderSignedArchive();
     signedArchivePanel.hidden = false;
     sharePanel.hidden = true;
@@ -1059,8 +1481,9 @@
 
     const downloadButton = event.target.closest("[data-download-signed-index]");
     if (downloadButton) {
-      loadSignedArchiveRecord(Number(downloadButton.dataset.downloadSignedIndex));
-      window.setTimeout(() => window.print(), 250);
+      if (loadSignedArchiveRecord(Number(downloadButton.dataset.downloadSignedIndex))) {
+        window.setTimeout(openLinkedPdf, 250);
+      }
       return;
     }
 
@@ -1105,6 +1528,7 @@
     archive.splice(index, 1);
     storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
     await deleteSignedQuoteFromSupabase(record.id);
+    await deleteSignedQuoteFromLocalServer(record.id);
     renderSignedArchive();
   }
 
@@ -1116,10 +1540,19 @@
     return showAppDialog({ title, message, confirmText, showCancel: true });
   }
 
-  function showAppDialog({ title, message, confirmText, showCancel }) {
+  function showAppDialog({
+    title,
+    message,
+    confirmText,
+    showCancel,
+    cancelText = "ביטול",
+    confirmResult = true,
+    cancelResult = false,
+  }) {
     appDialogTitle.textContent = title;
     appDialogMessage.innerHTML = `<p>${escapeHtml(message)}</p>`;
     appDialogConfirm.textContent = confirmText;
+    appDialogCancel.textContent = cancelText;
     appDialogCancel.hidden = !showCancel;
     appDialog.hidden = false;
     appDialogConfirm.focus();
@@ -1133,13 +1566,13 @@
         document.removeEventListener("keydown", onKeydown);
         resolve(result);
       };
-      const onConfirm = () => close(true);
-      const onCancel = () => close(false);
+      const onConfirm = () => close(confirmResult);
+      const onCancel = () => close(cancelResult);
       const onBackdrop = (event) => {
-        if (event.target === appDialog && showCancel) close(false);
+        if (event.target === appDialog && showCancel) close(null);
       };
       const onKeydown = (event) => {
-        if (event.key === "Escape") close(false);
+        if (event.key === "Escape") close(null);
       };
 
       appDialogConfirm.addEventListener("click", onConfirm);
@@ -1158,6 +1591,22 @@
       console.warn("Could not parse signed archive", error);
       return [];
     }
+  }
+
+  function writeSignedArchive(archive) {
+    const cleanArchive = mergeSignedArchiveRecords(archive);
+    storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(cleanArchive));
+    return cleanArchive;
+  }
+
+  function mergeSignedArchiveRecords(...archives) {
+    const byId = new Map();
+    archives.flat().forEach((record) => {
+      if (!record?.id || !record.quote) return;
+      byId.set(record.id, record);
+    });
+
+    return Array.from(byId.values()).sort((a, b) => new Date(b.signedAt || 0) - new Date(a.signedAt || 0));
   }
 
   function setupSupabase() {
@@ -1182,9 +1631,20 @@
         signedAt: record.signed_at,
         quote: record.quote,
       }));
-      storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
+      writeSignedArchive(mergeSignedArchiveRecords(archive, readSignedArchive()));
     } catch (error) {
       console.warn("Could not load signed archive from Supabase", error);
+    }
+  }
+
+  async function syncSignedArchiveFromLocalServer() {
+    try {
+      const response = await fetch(LOCAL_SIGNED_ARCHIVE_URL);
+      if (!response.ok) throw new Error(`Local signed archive failed: ${response.status}`);
+      const archive = await response.json();
+      writeSignedArchive(mergeSignedArchiveRecords(Array.isArray(archive) ? archive : [], readSignedArchive()));
+    } catch (error) {
+      console.warn("Could not load signed archive from local server", error);
     }
   }
 
@@ -1203,6 +1663,19 @@
     }
   }
 
+  async function saveSignedQuoteToLocalServer(record) {
+    try {
+      const response = await fetch(LOCAL_SIGNED_ARCHIVE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(record),
+      });
+      if (!response.ok) throw new Error(`Local signed archive save failed: ${response.status}`);
+    } catch (error) {
+      console.warn("Could not save signed quote to local server", error);
+    }
+  }
+
   async function deleteSignedQuoteFromSupabase(id) {
     if (!supabaseClient || !id) return;
 
@@ -1211,6 +1684,17 @@
       if (error) throw error;
     } catch (error) {
       console.warn("Could not delete signed quote from Supabase", error);
+    }
+  }
+
+  async function deleteSignedQuoteFromLocalServer(id) {
+    if (!id) return;
+
+    try {
+      const response = await fetch(`${LOCAL_SIGNED_ARCHIVE_URL}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`Local signed archive delete failed: ${response.status}`);
+    } catch (error) {
+      console.warn("Could not delete signed quote from local server", error);
     }
   }
 
@@ -1226,6 +1710,21 @@
       if (error) throw error;
     } catch (error) {
       console.warn("Could not save template settings to Supabase", error);
+    }
+  }
+
+  async function saveClientLogoSettingsToSupabase(logos) {
+    if (!supabaseClient) return;
+
+    try {
+      const { error } = await supabaseClient.from("client_logo_settings").upsert({
+        id: "default",
+        logos: normalizeClientLogos(logos),
+        updated_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+    } catch (error) {
+      console.warn("Could not save client logos to Supabase", error);
     }
   }
 
@@ -1398,7 +1897,7 @@
         (section) => `
           <tr>
             <td>${section.number}</td>
-            <td><a href="#${sectionId(section.key)}">${escapeHtml(section.title)}</a></td>
+            <td><a href="${escapeAttr(sectionHref(section.key))}">${escapeHtml(section.title)}</a></td>
           </tr>
         `
       )
@@ -1422,8 +1921,8 @@
 
   function renderCompanyPage(q, sections) {
     return page(`
-      <section class="content-section" id="${sectionId("profile")}">
-        <h1 class="page-title">${sectionTitle(sections, "profile")}</h1>
+      <section class="content-section">
+        <h1 class="page-title">${sectionTitleLink("profile", sectionTitle(sections, "profile"))}</h1>
         ${paragraphs(q.companyProfileText)}
         <div class="accent-band">
           <strong>Improve-IT משלבת מתודולוגיה וטכנולוגיה לשיפור ביצועים בארגונים.</strong>
@@ -1435,10 +1934,27 @@
   }
 
   function renderClientsPage(q) {
+    const logos = normalizeClientLogos(q.clientLogos);
+    const logosMarkup =
+      logos.length === 1 && logos[0].src === LEGACY_CLIENT_LOGOS_SRC
+        ? `<img class="clients-image" src="${escapeAttr(logos[0].src)}" alt="${escapeAttr(logos[0].name || "לקוחות Improve-IT")}" />`
+        : `<div class="clients-logo-grid">
+            ${logos
+              .map(
+                (logo) => `
+                  <figure class="client-logo-card" style="--logo-scale: ${escapeAttr(logo.size / 100)}">
+                    <img src="${escapeAttr(logo.src)}" alt="${escapeAttr(logo.name || "לוגו לקוח")}" />
+                    ${logo.name ? `<figcaption>${escapeHtml(logo.name)}</figcaption>` : ""}
+                  </figure>
+                `
+              )
+              .join("")}
+          </div>`;
+
     return page(`
-      <section class="content-section" id="${sectionId("clients")}">
-        <h1 class="page-title">${escapeHtml(q.clientsText || "מבין לקוחותינו")}</h1>
-        <img class="clients-image" src="assets/brand/client-logos.png" alt="לקוחות Improve-IT" />
+      <section class="content-section">
+        <h1 class="page-title">${sectionTitleLink("clients", q.clientsText || "מבין לקוחותינו")}</h1>
+        ${logosMarkup}
       </section>
     `);
   }
@@ -1447,8 +1963,8 @@
     const blocks = [];
     if (q.showBackground) {
       blocks.push(`
-        <section class="content-section" id="${sectionId("background")}">
-          <h1 class="page-title">${sectionTitle(sections, "background")}</h1>
+        <section class="content-section">
+          <h1 class="page-title">${sectionTitleLink("background", sectionTitle(sections, "background"))}</h1>
           ${paragraphs(q.backgroundText)}
         </section>
       `);
@@ -1456,8 +1972,8 @@
 
     if (q.showSolution) {
       blocks.push(`
-        <section class="content-section" id="${sectionId("solution")}">
-          <h1 class="page-title">${sectionTitle(sections, "solution")}</h1>
+        <section class="content-section">
+          <h1 class="page-title">${sectionTitleLink("solution", sectionTitle(sections, "solution"))}</h1>
           ${paragraphs(q.solutionText)}
         </section>
       `);
@@ -1491,8 +2007,8 @@
       : "";
 
     return page(`
-      <section class="content-section" id="${sectionId("work")}">
-        <h1 class="page-title">${sectionTitle(sections, "work")}</h1>
+      <section class="content-section">
+        <h1 class="page-title">${sectionTitleLink("work", sectionTitle(sections, "work"))}</h1>
         <ul class="bullet-list">
           ${processBullets.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         </ul>
@@ -1506,23 +2022,13 @@
     const planRow = q.pricingPlanLabel
       ? `<tr class="pricing-plan-row"><td colspan="3">${escapeHtml(q.pricingPlanLabel)}</td></tr>`
       : "";
-    const rows = pricing.rows
-      .map(
-        (row) => `
-          <tr>
-            <td>${escapeHtml(row.title)}</td>
-            <td class="price">${row.included ? "כלול" : formatCurrency(row.price)}</td>
-            <td class="notes">${formatNotes(row.notes || "")}</td>
-          </tr>
-        `
-      )
-      .join("");
+    const rows = renderPricingRows(q, pricing.rows);
 
     const discountRow = pricing.discount
       ? `
         <tr class="discount-row">
           <td>${escapeHtml(q.discountTitle || "הנחה")}</td>
-          <td class="price">${q.showTotals ? `-${formatCurrency(pricing.discount)}` : ""}</td>
+          <td class="price">${escapeHtml(formatDiscountTableValue(q, pricing))}</td>
           <td class="notes">${formatNotes(buildDiscountNote(q))}</td>
         </tr>
       `
@@ -1532,7 +2038,7 @@
         <table class="total-table">
           <tbody>
             <tr>
-              <td>סה"כ לפני הנחות</td>
+              <td>סה"כ לפני הנחה</td>
               <td>${formatCurrency(pricing.subtotal)}</td>
             </tr>
             ${
@@ -1550,8 +2056,8 @@
       : "";
 
     return page(`
-      <section class="content-section" id="${sectionId("pricing")}">
-        <h1 class="page-title">${sectionTitle(sections, "pricing")}</h1>
+      <section class="content-section">
+        <h1 class="page-title">${sectionTitleLink("pricing", sectionTitle(sections, "pricing"))}</h1>
         <div class="pricing-intro">${formatNotes(buildPricingIntro(q))}</div>
         <table class="pricing-table">
           <thead>
@@ -1605,8 +2111,8 @@
 
     const payment = q.showTerms
       ? `
-        <section class="content-section" id="${sectionId("terms")}">
-          <h1 class="page-title">${termsTitle}</h1>
+        <section class="content-section">
+          <h1 class="page-title">${sectionTitleLink("terms", termsTitle)}</h1>
           <p><strong>תנאי תשלום לשירות לומדה בענן:</strong> שוטף + 30.</p>
           ${q.includeLms ? "<p>מסלול שנתי: תשלום מראש לשנה עם העברת הזמנת עבודה.</p>" : ""}
           <p>הצעת המחיר תהיה בתוקף למשך ${escapeHtml(q.validDays)} ימים מהוצאתה.</p>
@@ -1619,8 +2125,8 @@
 
     const cancellation = q.showCancellation
       ? `
-        <section class="content-section" id="${sectionId("cancellation")}">
-          <h2>${cancellationTitle}</h2>
+        <section class="content-section">
+          <h2>${sectionTitleLink("cancellation", cancellationTitle)}</h2>
           <ol class="terms-list">
             ${lines(q.cancellationText).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
           </ol>
@@ -1646,11 +2152,13 @@
 
     return `
       <div class="client-approval">
-        <div class="approval-field">
+        <div class="approval-field approval-field--signer">
           <span>שם</span>
-          <strong>${escapeHtml(q.clientSignerName) || "&nbsp;"}</strong>
-          ${signerTitle}
-          ${signerCompany}
+          <div class="approval-signer-details">
+            <strong>${escapeHtml(q.clientSignerName) || "&nbsp;"}</strong>
+            ${signerTitle}
+            ${signerCompany}
+          </div>
         </div>
         <div class="approval-field signature">
           <span>חתימה</span>
@@ -1715,9 +2223,19 @@
     return `quote-section-${key}`;
   }
 
+  function sectionTitleLink(key, title) {
+    const id = sectionId(key);
+    return `<a class="section-title-link" id="${escapeAttr(id)}" name="${escapeAttr(id)}" href="${escapeAttr(sectionHref(key))}">${escapeHtml(title)}</a>`;
+  }
+
+  function sectionHref(key) {
+    return `${getShareBaseUrl()}#${sectionId(key)}`;
+  }
+
   function buildServiceDescription(q) {
-    const pieces = ["שימוש בלומדות מדף"];
-    if (q.includeLms) pieces.push(`כולל ${pricingOptionLabel(q, "includeLms", "מערכת LMS")}`);
+    const pieces = q.includeLms
+      ? [`שימוש ב${pricingOptionLabel(q, "includeLms", "מערכת LMS בענן")},`, "כולל לומדות מדף"]
+      : ["שימוש בלומדות מדף"];
     if (q.includeTranslation) pieces.push(`ו${pricingOptionLabel(q, "includeTranslation", "תרגום")}`);
     return pieces.join(" ");
   }
@@ -1734,54 +2252,74 @@
     };
   }
 
+  function renderPricingRows(q, rows) {
+    const courseRows = rows.filter((row) => row.kind === "course");
+    const shouldMergeCourseNotes = Boolean(q.mergeCourseNotes && courseRows.length > 1);
+    let courseRowIndex = 0;
+
+    return rows
+      .map((row) => {
+        const isCourseRow = row.kind === "course";
+        const notesCell = (() => {
+          if (!shouldMergeCourseNotes || !isCourseRow) {
+            return `<td class="notes">${formatNotes(row.notes || "")}</td>`;
+          }
+
+          courseRowIndex += 1;
+          if (courseRowIndex > 1) return "";
+
+          return `<td class="notes" rowspan="${courseRows.length}">${formatNotes(courseRows[0].notes || "")}</td>`;
+        })();
+
+        return `
+          <tr>
+            <td>${escapeHtml(row.title)}</td>
+            <td class="price">${row.included ? "כלול" : formatCurrency(row.price)}</td>
+            ${notesCell}
+          </tr>
+        `;
+      })
+      .join("");
+  }
+
+  function formatDiscountTableValue(q, pricing) {
+    if (q.discountDisplayMode === "amount") return `-${formatCurrency(pricing.discount)}`;
+    return `${formatPercent(q.discountPercent)}`;
+  }
+
   function buildDefaultPricingItems(q) {
-    const coursePrices = [6000, 3500, 2250, 2250];
-    const courseCount = Math.max(q.courseCount, q.courseNames.length);
-    const rows = Array.from({ length: courseCount }, (_, index) => {
-      return {
-        title: buildDefaultCourseTitle(q, index),
-        price: coursePrices[index] || coursePrices[coursePrices.length - 1],
-        notes:
-          index === 0
-            ? [
-                "כולל הוספת לוגו, שם לקוח וממונה.",
-                "לא כולל שינוי בעיצוב גרפי.",
-                q.bilingualCourse ? "ההצעה ללומדות בשפות עברית ואנגלית." : "ההצעה ללומדות בשפה העברית בלבד.",
-                "תשלום מראש לשנה והתחייבות לשנה.",
-                q.includeLms
-                  ? `הוספת עובדים תתבצע במרוכז אחת לחודש בעלות של ${formatCurrency(q.additionalUserPrice)} לכל עובד נוסף.`
-                  : "",
-              ]
-                .filter(Boolean)
-                .join("\n")
-            : "",
-        included: false,
-      };
-    });
+    const rows = q.includeLms ? buildLmsRentalRows(q) : buildShelfCoursePurchaseRows(q);
 
     if (q.includeHebrewVoiceover) {
+      const hebrewVoiceover = buildHebrewVoiceoverRow(q);
+      if (hebrewVoiceover) rows.push(hebrewVoiceover);
+    }
+
+    if (q.includeTranslation) {
       rows.push({
-        title: pricingOptionLabel(q, "includeHebrewVoiceover", "התאמת קריינות בעברית"),
-        price: 450,
-        notes: "המחיר כולל את הקריינות עצמה ואת התאמת הקריינות ללומדה.\nהמחיר מתייחס ללומדה אחת.",
+        title: pricingOptionLabel(q, "includeTranslation", "תרגום לשפה נוספת"),
+        price: translationPrice(q),
+        notes: q.includeLms
+          ? "תרגום לשפה אחת מבין אנגלית, רוסית או ערבית. המחיר מתייחס לשפה אחת ולכל הלומדות בחבילה."
+          : "תרגום לשפה אחת מבין אנגלית, רוסית או ערבית.",
         included: false,
       });
     }
 
     if (q.includeEnglishVoiceover) {
       rows.push({
-        title: pricingOptionLabel(q, "includeEnglishVoiceover", "התאמת קריינות באנגלית"),
-        price: 600,
-        notes: "אופציונלי.",
+        title: pricingOptionLabel(q, "includeEnglishVoiceover", "קריינות בשפה נוספת"),
+        price: 950,
+        notes: "קריינות בשפה נוספת באמצעות AI. המחיר מתייחס לשפה אחת.",
         included: false,
       });
     }
 
     if (q.includeLms) {
       rows.push({
-        title: pricingOptionLabel(q, "includeLms", "הקמת סביבה וניהול דו\"חות"),
+        title: pricingOptionLabel(q, "includeLms", "מערכת LMS בענן"),
         price: 0,
-        notes: "הדוחות יסופקו פעם בחודש.",
+        notes: "הקמת סביבת LMS, העלאת משתמשים ולומדות, והפקת דו\"חות חודשיים.",
         included: true,
       });
     }
@@ -1789,10 +2327,154 @@
     return rows.map(normalizePricingItem);
   }
 
+  function buildLmsRentalRows(q) {
+    const courseCount = Math.max(q.courseCount, q.courseNames.length);
+    const rows = [];
+    if (!courseCount) return rows;
+
+    if (courseCount >= 3 && q.users <= 700) {
+      rows.push({
+        title: buildLmsPackageTitle(q, Math.min(courseCount, 3)),
+        price: lmsPackagePrice(q.users),
+        kind: "course",
+        notes: buildShelfCourseNotes(q),
+        included: false,
+      });
+      for (let index = 3; index < courseCount; index += 1) {
+        rows.push({
+          title: buildAdditionalLmsCourseTitle(q, index),
+          price: lmsAdditionalCoursePrice(q.users),
+          kind: "course",
+          notes: "",
+          included: false,
+        });
+      }
+      return rows;
+    }
+
+    rows.push({
+      title: buildDefaultCourseTitle(q, 0),
+      price: lmsSingleCoursePrice(q.users),
+      kind: "course",
+      notes: buildShelfCourseNotes(q),
+      included: false,
+    });
+
+    for (let index = 1; index < courseCount; index += 1) {
+      rows.push({
+        title: buildAdditionalLmsCourseTitle(q, index),
+        price: lmsAdditionalCoursePrice(q.users),
+        kind: "course",
+        notes: "",
+        included: false,
+      });
+    }
+
+    return rows;
+  }
+
+  function buildShelfCoursePurchaseRows(q) {
+    const courseCount = Math.max(q.courseCount, q.courseNames.length);
+    const rows = [];
+    if (!courseCount) return rows;
+
+    const packageCount = Math.min(courseCount, 3);
+    rows.push({
+      title: packageCount === 1 ? buildDefaultCourseTitle(q, 0) : `חבילת ${packageCount} לומדות מדף מקבוצה A`,
+      price: SHELF_COURSE_GROUP_A_PACKAGE_PRICES[packageCount],
+      kind: "course",
+      notes: buildShelfCourseNotes(q),
+      included: false,
+    });
+
+    for (let index = 3; index < courseCount; index += 1) {
+      rows.push({
+        title: `לומדת מדף נוספת ${index + 1}${courseNameSuffix(q, index)}`,
+        price: 2500,
+        kind: "course",
+        notes: "",
+        included: false,
+      });
+    }
+
+    return rows;
+  }
+
   function buildDefaultCourseTitle(q, index) {
+    const namedSuffix = courseNameSuffix(q, index);
+    const courseLabel = q.courseCount === 1 && !namedSuffix ? "לומדה אחת" : `לומדה ${index + 1}${namedSuffix}`;
+    if (q.includeLms) return `מערכת LMS כולל ${courseLabel} עבור ${q.users} עובדים לשנה`;
+    return `לומדת מדף ${index + 1}${namedSuffix}`;
+  }
+
+  function buildLmsPackageTitle(q, packageCount) {
+    return `מערכת LMS כולל חבילת ${packageCount} לומדות מדף עבור ${q.users} עובדים לשנה`;
+  }
+
+  function buildAdditionalLmsCourseTitle(q, index) {
+    return `לומדה נוספת ${index + 1}${courseNameSuffix(q, index)} במערכת LMS עבור ${q.users} עובדים לשנה`;
+  }
+
+  function courseNameSuffix(q, index) {
     const name = q.courseNames[index] || "";
-    const namedSuffix = name && !/^לומד(?:ה|ת)\s+מדף\s*\d+$/i.test(name) ? ` - ${name}` : "";
-    return `לומדת מדף ${index + 1}${q.includeLms ? ` במערכת LMS עבור ${q.users} עובדים לשנה` : ""}${namedSuffix}`;
+    return name && !/^לומד(?:ה|ת)\s+מדף\s*\d+$/i.test(name) ? ` - ${name}` : "";
+  }
+
+  function buildShelfCourseNotes(q) {
+    return [
+      "המחיר כולל הוספת לוגו, שם לקוח וממונה ועד 100 מילים שינוי טקסט.",
+      q.bilingualCourse ? "ההצעה מתייחסת ללומדות בשפות עברית ואנגלית." : "ההצעה מתייחסת ללומדות בשפה העברית בלבד.",
+      q.includeLms ? "מסלול השכרה שנתי במערכת LMS." : "",
+      q.includeLms && q.courseCount >= 4 ? "בחבילה של 4 לומדות או יותר תינתן הנחה של 5% על החבילה." : "",
+      q.includeLms ? "בעת חידוש הסכם ניתן להחליף גרסה בהתאם לתנאי המחירון." : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
+
+  function buildHebrewVoiceoverRow(q) {
+    if (q.courseCount >= 2) {
+      return {
+        title: pricingOptionLabel(q, "includeHebrewVoiceover", "קריינות בעברית"),
+        price: 0,
+        notes: q.includeLms
+          ? "בהשכרת 2 לומדות ומעלה הקריינות בעברית כלולה במחיר."
+          : "בהזמנה של 2 לומדות ומעלה בשפה העברית הקריינות כלולה במחיר.",
+        included: true,
+      };
+    }
+
+    return {
+      title: pricingOptionLabel(q, "includeHebrewVoiceover", "קריינות בעברית"),
+      price: q.includeLms ? 450 : 350,
+      notes: "התאמת קריינות בעברית ללומדה אחת.",
+      included: false,
+    };
+  }
+
+  function lmsSingleCoursePrice(users) {
+    return priceFromTier(LMS_SINGLE_COURSE_TIERS, users);
+  }
+
+  function lmsPackagePrice(users) {
+    return priceFromTier(LMS_THREE_COURSE_PACKAGE_TIERS, users);
+  }
+
+  function lmsAdditionalCoursePrice(users) {
+    if (users <= 500) return 1200;
+    if (users <= 700) return 1900;
+    if (users <= 850) return 2200;
+    return 2900;
+  }
+
+  function translationPrice(q) {
+    const pricePerCourse = q.includeLms ? 750 : 950;
+    return pricePerCourse * Math.max(1, q.courseCount);
+  }
+
+  function priceFromTier(tiers, users) {
+    const tier = tiers.find((item) => users <= item.maxUsers);
+    return tier ? tier.price : tiers[tiers.length - 1].price;
   }
 
   function pricingOptionLabel(q, key, fallback) {
@@ -1805,6 +2487,7 @@
       price: numberOr(item?.price, 0),
       notes: item?.notes || "",
       included: Boolean(item?.included),
+      kind: item?.kind === "course" ? "course" : "",
     };
   }
 
@@ -1818,13 +2501,18 @@
   function buildPricingIntro(q) {
     const customIntro = String(q.pricingIntroText || "").trim();
     if (customIntro) return customIntro;
-    return "כותרת טבלת תמחור";
+    return "פירוט הרכיבים, העלויות והתכולות הכלולות בהצעה";
   }
 
   function buildDiscountNote(q) {
     const percent = q.discountPercent ? `תינתן הנחה של ${q.discountPercent}%` : "תינתן הנחה";
     if (!q.discountValidUntil) return percent;
     return `${percent} במידה ותתקבל הזמנת עבודה עד ה-${formatDotDate(q.discountValidUntil)}`;
+  }
+
+  function formatPercent(value) {
+    const percent = new Intl.NumberFormat("he-IL", { maximumFractionDigits: 1 }).format(numberOr(value, 0));
+    return `${percent}%`;
   }
 
   function paragraphs(text) {
