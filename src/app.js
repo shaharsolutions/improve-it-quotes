@@ -6,6 +6,7 @@
   const CLIENT_LOGO_SETTINGS_KEY = "improve-it-client-logo-settings";
   const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
+  const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
   const DEFAULT_SALESPERSON_SETTINGS = {
     selectedId: "default",
     advisors: [
@@ -384,6 +385,12 @@
   }
 
   async function readInitialQuote() {
+    const sharedQuoteId = getHashParam("id");
+    if (sharedQuoteId) {
+      const sharedQuote = await readSharedQuote(sharedQuoteId);
+      if (sharedQuote) return sharedQuote;
+    }
+
     const compressedHashData = getHashParam("z");
     if (compressedHashData) {
       try {
@@ -1425,7 +1432,13 @@
   }
 
   async function buildClientLink() {
-    const encoded = await compressQuotePayload(JSON.stringify(buildShareQuotePayload()));
+    const payload = buildShareQuotePayload();
+    const shareId = await saveSharedQuote(payload);
+    if (shareId) {
+      return `${getShareBaseUrl()}#mode=client&id=${encodeURIComponent(shareId)}`;
+    }
+
+    const encoded = await compressQuotePayload(JSON.stringify(payload));
     return `${getShareBaseUrl()}#mode=client&z=${encoded}`;
   }
 
@@ -1860,6 +1873,80 @@
       if (!response.ok) throw new Error(`Local signed archive delete failed: ${response.status}`);
     } catch (error) {
       console.warn("Could not delete signed quote from local server", error);
+    }
+  }
+
+  async function saveSharedQuote(payload) {
+    const id = createShortId("q");
+    const savedToSupabase = await saveSharedQuoteToSupabase(id, payload);
+    if (savedToSupabase) return id;
+
+    const savedToLocalServer = await saveSharedQuoteToLocalServer(id, payload);
+    return savedToLocalServer ? id : "";
+  }
+
+  async function readSharedQuote(id) {
+    return (await readSharedQuoteFromSupabase(id)) || (await readSharedQuoteFromLocalServer(id));
+  }
+
+  async function saveSharedQuoteToSupabase(id, payload) {
+    if (!supabaseClient || !id) return false;
+
+    try {
+      const { error } = await supabaseClient.from("shared_quotes").upsert({
+        id,
+        quote: payload,
+        created_at: new Date().toISOString(),
+      });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn("Could not save shared quote to Supabase", error);
+      return false;
+    }
+  }
+
+  async function readSharedQuoteFromSupabase(id) {
+    if (!supabaseClient || !id) return null;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("shared_quotes")
+        .select("quote")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.quote || null;
+    } catch (error) {
+      console.warn("Could not load shared quote from Supabase", error);
+      return null;
+    }
+  }
+
+  async function saveSharedQuoteToLocalServer(id, payload) {
+    try {
+      const response = await fetch(LOCAL_SHARED_QUOTE_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, quote: payload }),
+      });
+      if (!response.ok) throw new Error(`Local shared quote save failed: ${response.status}`);
+      return true;
+    } catch (error) {
+      console.warn("Could not save shared quote to local server", error);
+      return false;
+    }
+  }
+
+  async function readSharedQuoteFromLocalServer(id) {
+    try {
+      const response = await fetch(`${LOCAL_SHARED_QUOTE_URL}?id=${encodeURIComponent(id)}`);
+      if (!response.ok) throw new Error(`Local shared quote load failed: ${response.status}`);
+      const record = await response.json();
+      return record?.quote || null;
+    } catch (error) {
+      console.warn("Could not load shared quote from local server", error);
+      return null;
     }
   }
 
@@ -2801,6 +2888,10 @@
 
   function createId(prefix) {
     return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  function createShortId(prefix) {
+    return `${prefix}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   }
 
   function monthEndIsoDate(value) {

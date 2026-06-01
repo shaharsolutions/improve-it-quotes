@@ -76,6 +76,7 @@ window.IMPROVE_IT_SUPABASE = {
 החיבור שומר:
 
 - הצעות חתומות בטבלה `signed_quotes`
+- קישורים קצרים ללקוחות בטבלה `shared_quotes`
 - הגדרות פורמטים בטבלה `template_settings`
 - לוגואים של לקוחות בטבלה `client_logo_settings`
 - יועצי מכירות והיועץ הנבחר בטבלה `salesperson_settings`

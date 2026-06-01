@@ -11,6 +11,7 @@ const root = resolve(__dirname, "..");
 const port = Number(process.env.PORT || 4173);
 const maxBodySize = 12 * 1024 * 1024;
 const signedArchivePath = resolve(root, "output", "signed-archive.local.json");
+const sharedQuotesPath = resolve(root, "output", "shared-quotes.local.json");
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -36,6 +37,11 @@ const server = createServer(async (request, response) => {
 
     if (request.url?.startsWith("/api/signed-archive")) {
       await handleSignedArchiveRequest(request, response);
+      return;
+    }
+
+    if (request.url?.startsWith("/api/shared-quotes")) {
+      await handleSharedQuotesRequest(request, response);
       return;
     }
 
@@ -84,6 +90,52 @@ const server = createServer(async (request, response) => {
 server.listen(port, () => {
   console.log(`Serving Improve-IT quote generator at http://localhost:${port}/`);
 });
+
+async function handleSharedQuotesRequest(request, response) {
+  if (request.method === "GET") {
+    const url = new URL(request.url || "", `http://localhost:${port}`);
+    const id = url.searchParams.get("id");
+    const quote = id ? readLocalSharedQuotes()[id] : null;
+
+    if (!quote) {
+      sendJson(response, 404, { error: "Shared quote not found" });
+      return;
+    }
+
+    sendJson(response, 200, { id, quote });
+    return;
+  }
+
+  if (request.method === "POST") {
+    const record = JSON.parse(await readBody(request) || "{}");
+    if (!record?.id || !record?.quote || typeof record.quote !== "object") {
+      sendJson(response, 400, { error: "Missing shared quote record" });
+      return;
+    }
+
+    const quotes = readLocalSharedQuotes();
+    quotes[record.id] = record.quote;
+    writeLocalSharedQuotes(quotes);
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
+  sendJson(response, 405, { error: "Method not allowed" });
+}
+
+function readLocalSharedQuotes() {
+  try {
+    const quotes = JSON.parse(readFileSync(sharedQuotesPath, "utf8"));
+    return quotes && typeof quotes === "object" && !Array.isArray(quotes) ? quotes : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeLocalSharedQuotes(quotes) {
+  mkdirSync(dirname(sharedQuotesPath), { recursive: true });
+  writeFileSync(sharedQuotesPath, JSON.stringify(quotes, null, 2), "utf8");
+}
 
 async function handleSignedArchiveRequest(request, response) {
   if (request.method === "GET") {

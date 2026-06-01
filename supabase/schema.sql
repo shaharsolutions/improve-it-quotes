@@ -5,6 +5,12 @@ create table if not exists public.signed_quotes (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.shared_quotes (
+  id text primary key,
+  quote jsonb not null,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists public.template_settings (
   id text primary key default 'default',
   settings jsonb not null,
@@ -24,6 +30,7 @@ create table if not exists public.salesperson_settings (
 );
 
 alter table public.signed_quotes enable row level security;
+alter table public.shared_quotes enable row level security;
 alter table public.template_settings enable row level security;
 alter table public.client_logo_settings enable row level security;
 alter table public.salesperson_settings enable row level security;
@@ -45,6 +52,25 @@ create policy "signed quotes can be deleted from the app"
 on public.signed_quotes for delete
 to anon
 using (true);
+
+drop policy if exists "shared quotes are publicly readable" on public.shared_quotes;
+create policy "shared quotes are publicly readable"
+on public.shared_quotes for select
+to anon
+using (true);
+
+drop policy if exists "shared quotes can be created from the app" on public.shared_quotes;
+create policy "shared quotes can be created from the app"
+on public.shared_quotes for insert
+to anon
+with check (true);
+
+drop policy if exists "shared quotes can be updated from the app" on public.shared_quotes;
+create policy "shared quotes can be updated from the app"
+on public.shared_quotes for update
+to anon
+using (true)
+with check (true);
 
 drop policy if exists "template settings are publicly readable" on public.template_settings;
 create policy "template settings are publicly readable"
