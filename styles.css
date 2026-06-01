@@ -642,9 +642,13 @@ select:focus {
 
 .client-logo-item {
   display: grid;
-  grid-template-columns: 34px 72px minmax(0, 1fr) minmax(0, 1.2fr) 70px;
+  grid-template-columns: 30px 72px minmax(0, 1fr) 66px;
+  grid-template-areas:
+    "order thumb name size"
+    "order thumb source source"
+    "order thumb file remove";
   gap: 8px;
-  align-items: end;
+  align-items: center;
   padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -652,6 +656,7 @@ select:focus {
 }
 
 .client-logo-order {
+  grid-area: order;
   display: grid;
   gap: 4px;
   align-self: center;
@@ -671,6 +676,7 @@ select:focus {
 }
 
 .client-logo-thumb {
+  grid-area: thumb;
   display: grid;
   place-items: center;
   width: 72px;
@@ -686,21 +692,45 @@ select:focus {
   object-fit: contain;
 }
 
+.client-logo-name {
+  grid-area: name;
+}
+
+.client-logo-source {
+  grid-area: source;
+}
+
 .client-logo-file {
-  grid-column: 3 / 4;
+  grid-area: file;
+}
+
+.client-logo-size {
+  grid-area: size;
+}
+
+.client-logo-item label {
+  min-width: 0;
+}
+
+.client-logo-item input {
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .client-logo-size input {
-  min-height: 34px;
-  padding: 6px 8px;
+  text-align: center;
 }
 
 .client-logo-file input {
-  padding: 6px;
   font-size: 11px;
 }
 
-.client-logo-item button {
+.client-logo-remove {
+  grid-area: remove;
+}
+
+.client-logo-remove {
   min-height: 38px;
 }
 
@@ -1407,6 +1437,17 @@ select:focus {
   .client-logo-item,
   .clients-logo-grid {
     grid-template-columns: 1fr;
+  }
+
+  .client-logo-item {
+    grid-template-areas:
+      "order"
+      "thumb"
+      "name"
+      "size"
+      "source"
+      "file"
+      "remove";
   }
 
   .client-logo-file {

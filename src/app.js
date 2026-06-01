@@ -1039,11 +1039,11 @@
         <div class="client-logo-thumb">
           ${logo.src ? `<img src="${escapeAttr(logo.src)}" alt="${escapeAttr(logo.name || "לוגו לקוח")}" />` : ""}
         </div>
-        <label>
+        <label class="client-logo-name">
           שם לתיאור
           <input data-client-logo-field="name" type="text" value="${escapeAttr(logo.name)}" />
         </label>
-        <label>
+        <label class="client-logo-source">
           מקור תמונה
           <input data-client-logo-field="src" type="url" value="${escapeAttr(logo.src)}" />
         </label>
@@ -1055,7 +1055,7 @@
           העלאת קובץ
           <input data-client-logo-upload type="file" accept="image/*" />
         </label>
-        <button type="button" class="danger" data-remove-client-logo="${index}">מחיקה</button>
+        <button type="button" class="danger client-logo-remove" data-remove-client-logo="${index}">מחיקה</button>
       </div>
     `;
   }
