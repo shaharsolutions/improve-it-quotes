@@ -197,7 +197,7 @@
     clientLogos: DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo })),
     pricingItemsEdited: false,
     users: 100,
-    courseCount: 4,
+    courseCount: 3,
     courseNames: [],
     pricingPlanLabel: "השכרה - מסלול שנתי",
     pricingIntroText: "",
@@ -216,7 +216,7 @@
       includeEnglishVoiceover: "קריינות באנגלית",
       includeTranslation: "תרגום",
     },
-    discountPercent: 5,
+    discountPercent: 0,
     discountDisplayMode: "percent",
     discountTitle: "הנחות",
     discountValidUntil: "2024-07-31",
@@ -315,6 +315,7 @@
     document.querySelectorAll("[data-section-edit]").forEach((button) => {
       button.addEventListener("click", () => openSectionEditor(button.dataset.sectionEdit));
     });
+    document.querySelector(".topbar-actions").addEventListener("click", handleTopbarActionClick, { capture: true });
 
     document.getElementById("addPricingItem").addEventListener("click", () => {
       quote.pricingItems.push({ title: "רכיב חדש", price: 0, notes: "", included: false });
@@ -547,6 +548,15 @@
     settingsPanel.hidden = false;
     sharePanel.hidden = true;
     signedArchivePanel.hidden = true;
+  }
+
+  function handleTopbarActionClick(event) {
+    if (!event.target.closest("button, .action-button")) return;
+    scrollPageToTop();
+  }
+
+  function scrollPageToTop() {
+    window.scrollTo({ top: 0, left: 0, behavior: "smooth" });
   }
 
   function normalizeSalespersonSettings(raw = {}) {
