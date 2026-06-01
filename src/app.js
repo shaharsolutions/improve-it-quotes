@@ -361,6 +361,8 @@
     salespersonSelectField.addEventListener("change", handleSalespersonSelectionChange);
     salespersonNameField.addEventListener("input", handleSalespersonSettingsInput);
     salespersonTitleField.addEventListener("input", handleSalespersonSettingsInput);
+    salespersonNameField.addEventListener("change", handleSalespersonSettingsCommit);
+    salespersonTitleField.addEventListener("change", handleSalespersonSettingsCommit);
     document.getElementById("addSalespersonSettings").addEventListener("click", addSalespersonSettings);
     document.getElementById("deleteSalespersonSettings").addEventListener("click", deleteSalespersonSettings);
     document.getElementById("resetSalespersonSettings").addEventListener("click", resetSalespersonSettings);
@@ -655,13 +657,28 @@
 
   function handleSalespersonSettingsInput() {
     const selectedAdvisor = selectedSalespersonAdvisor();
-    selectedAdvisor.name = salespersonNameField.value.trim() || DEFAULT_SALESPERSON_SETTINGS.advisors[0].name;
-    selectedAdvisor.title = salespersonTitleField.value.trim() || DEFAULT_SALESPERSON_SETTINGS.advisors[0].title;
-    saveSalespersonSettings();
+    selectedAdvisor.name = salespersonNameField.value;
+    selectedAdvisor.title = salespersonTitleField.value;
+    updateSelectedSalespersonOptionLabel();
     applySalespersonSettingsToQuote();
-    populateSalespersonSettingsForm();
     populateForm();
     renderPreview();
+  }
+
+  function handleSalespersonSettingsCommit() {
+    saveSalespersonSettings();
+    populateSalespersonSettingsForm();
+    applySalespersonSettingsToQuote();
+    populateForm();
+    renderPreview();
+  }
+
+  function updateSelectedSalespersonOptionLabel() {
+    const selectedAdvisor = selectedSalespersonAdvisor();
+    const selectedOption = Array.from(salespersonSelectField.options).find((option) => option.value === selectedAdvisor.id);
+    if (selectedOption) {
+      selectedOption.textContent = selectedAdvisor.name.trim() || DEFAULT_SALESPERSON_SETTINGS.advisors[0].name;
+    }
   }
 
   function addSalespersonSettings() {
