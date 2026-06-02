@@ -1703,8 +1703,10 @@
               <div class="signed-archive-row">
                 <div class="signed-archive-details">
                   <strong>${escapeHtml(signedQuote.clientCompany || "ללא חברה")} - ${escapeHtml(signedQuote.quoteNumber || "ללא מספר")}</strong>
-                  <span>חותם: ${escapeHtml(signedQuote.clientSignerName || "לא צוין")}</span>
-                  <span>נחתם: ${escapeHtml(formatDateTime(record.signedAt))}</span>
+                  <div class="signed-archive-meta">
+                    <span>חותם: ${escapeHtml(signedQuote.clientSignerName || "לא צוין")}</span>
+                    <span>נחתם: ${escapeHtml(formatDateTime(record.signedAt))}</span>
+                  </div>
                 </div>
                 <div class="signed-archive-actions">
                   <button type="button" class="compact" data-open-signed-index="${index}">פתיחה</button>
@@ -2194,7 +2196,9 @@
     if (!signatureContext) return;
 
     event.preventDefault();
-    signatureCanvas.setPointerCapture(event.pointerId);
+    if (signatureCanvas.setPointerCapture) {
+      signatureCanvas.setPointerCapture(event.pointerId);
+    }
     signatureIsDrawing = true;
     signatureLastPoint = getSignaturePoint(event);
     signatureContext.beginPath();
@@ -2217,6 +2221,9 @@
     if (!signatureIsDrawing) return;
 
     event.preventDefault();
+    if (signatureCanvas.releasePointerCapture && signatureCanvas.hasPointerCapture?.(event.pointerId)) {
+      signatureCanvas.releasePointerCapture(event.pointerId);
+    }
     signatureIsDrawing = false;
     signatureLastPoint = null;
     quote.clientSignatureData = signatureCanvas.toDataURL("image/png");

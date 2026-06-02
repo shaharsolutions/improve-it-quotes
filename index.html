@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>מחולל הצעות מחיר | Improve-IT</title>
-    <link rel="stylesheet" href="styles.css?v=20260601-logo-editor-layout" />
+    <link rel="stylesheet" href="styles.css?v=20260602-mobile-responsive" />
   </head>
   <body>
     <div class="app-shell">
@@ -38,8 +38,8 @@
         </div>
       </section>
 
-      <section class="share-panel" id="signedArchivePanel" hidden>
-        <div>
+      <section class="share-panel signed-archive-panel" id="signedArchivePanel" hidden>
+        <div class="signed-archive-intro">
           <strong>מאגר הצעות חתומות</strong>
           <p>המאגר נשמר בדפדפן המקומי. בחיבור עתידי לשרת, אזור זה יתחלף במאגר החברה המרכזי.</p>
         </div>
@@ -47,10 +47,10 @@
           חיפוש במאגר
           <input id="signedArchiveSearch" type="search" placeholder="חיפוש לפי חברה, מספר הצעה, חותם או תאריך" />
         </label>
-        <div id="signedArchiveList" class="signed-archive-list"></div>
         <div class="section-actions">
           <button type="button" class="compact" id="closeSignedArchive">סגירה</button>
         </div>
+        <div id="signedArchiveList" class="signed-archive-list"></div>
       </section>
 
       <section class="settings-panel" id="settingsPanel" hidden>
@@ -353,6 +353,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260602-signed-archive-search" defer></script>
+    <script src="src/app.js?v=20260602-mobile-responsive" defer></script>
   </body>
 </html>

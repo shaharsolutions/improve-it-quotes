@@ -25,6 +25,7 @@
 html,
 body {
   min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -88,6 +89,7 @@ button.is-confirmed {
 
 .app-shell {
   min-height: 100vh;
+  min-width: 0;
   display: grid;
   grid-template-rows: auto 1fr;
 }
@@ -168,6 +170,15 @@ button.is-confirmed {
 
 .share-panel textarea {
   resize: none;
+}
+
+.signed-archive-panel {
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 520px) auto;
+  align-items: end;
+}
+
+.signed-archive-intro {
+  align-self: center;
 }
 
 .settings-panel {
@@ -311,42 +322,56 @@ button.is-confirmed {
 .signed-archive-search {
   display: grid;
   gap: 6px;
-  min-width: min(360px, 100%);
+  width: min(520px, 100%);
   font-size: 12px;
   font-weight: 700;
 }
 
 .signed-archive-list {
-  max-height: 160px;
+  grid-column: 1 / -1;
+  max-height: min(360px, 42vh);
   overflow: auto;
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 10px;
+  padding-inline-start: 2px;
 }
 
 .signed-archive-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
   align-items: center;
-  padding: 8px 10px;
+  padding: 12px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #f9fbfc;
   font-size: 12px;
 }
 
 .signed-archive-details {
   display: grid;
-  gap: 2px;
+  gap: 6px;
+  min-width: 0;
+}
+
+.signed-archive-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  color: var(--muted);
 }
 
 .signed-archive-actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
+  justify-content: flex-start;
 }
 
 .signed-archive-row strong {
   font-size: 13px;
+  overflow-wrap: anywhere;
 }
 
 button.danger {
@@ -447,10 +472,12 @@ button.danger:hover {
 .workspace {
   display: grid;
   grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  min-width: 0;
   min-height: calc(100vh - 72px);
 }
 
 .editor-panel {
+  min-width: 0;
   overflow: auto;
   max-height: calc(100vh - 72px);
   padding: 18px;
@@ -820,6 +847,7 @@ select:focus {
 }
 
 .preview-panel {
+  min-width: 0;
   overflow: auto;
   max-height: calc(100vh - 72px);
   padding: 26px 24px 60px;
@@ -830,11 +858,14 @@ select:focus {
   display: grid;
   gap: 22px;
   justify-content: center;
+  min-width: 0;
 }
 
 .quote-page {
   position: relative;
   width: 210mm;
+  max-width: 100%;
+  min-width: 0;
   height: 297mm;
   min-height: 297mm;
   overflow: hidden;
@@ -1428,13 +1459,24 @@ select:focus {
 }
 
 @media screen and (max-width: 720px) {
+  body {
+    background: #f4f7f8;
+  }
+
   .app-topbar {
     align-items: stretch;
     flex-direction: column;
+    min-height: auto;
+    padding: 10px 12px;
   }
 
   .brand-lockup {
     min-width: 0;
+    gap: 10px;
+  }
+
+  .brand-lockup img {
+    width: 104px;
   }
 
   .topbar-actions {
@@ -1444,10 +1486,40 @@ select:focus {
   .topbar-actions button,
   .topbar-actions .action-button {
     flex: 1 1 120px;
+    min-height: 40px;
   }
 
   .field-grid,
   .toggle-list.columns {
+    grid-template-columns: 1fr;
+  }
+
+  .share-panel,
+  .signed-archive-panel,
+  .settings-panel {
+    padding: 12px;
+  }
+
+  .section-heading-row,
+  .settings-panel-head,
+  .app-dialog-actions,
+  .signed-archive-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .section-actions,
+  .signature-pad-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .signed-archive-list {
+    grid-template-columns: 1fr;
+  }
+
+  .signed-archive-row {
+    align-items: stretch;
     grid-template-columns: 1fr;
   }
 
@@ -1480,12 +1552,235 @@ select:focus {
   }
 
   .client-approval {
+    display: grid;
     grid-template-columns: 1fr;
+    gap: 10px;
+    justify-items: stretch;
+  }
+
+  .approval-field {
+    min-width: 0;
+  }
+
+  .approval-field strong {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .editor-panel,
+  .preview-panel {
+    padding: 12px;
+  }
+
+  .client-mode .workspace {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .client-mode .editor-panel {
+    order: 0;
+    border-left: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .client-mode .preview-panel {
+    order: 1;
+    overflow: visible;
+    padding: 10px 8px 28px;
+  }
+
+  .client-mode .client-signature-section {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .client-mode .client-sign-help {
+    display: block;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .signature-pad-wrap {
+    gap: 8px;
+  }
+
+  .signature-pad {
+    height: clamp(190px, 42vh, 300px);
+    border-radius: 10px;
+  }
+
+  .signature-pad-actions button,
+  .client-signature-submit {
+    min-height: 46px;
+    width: 100%;
+  }
+
+  .client-mode .client-signature-submit {
+    bottom: max(10px, env(safe-area-inset-bottom));
+    min-height: 52px;
+  }
+
+  .proposal-preview {
+    gap: 14px;
+    justify-items: stretch;
   }
 
   .quote-page {
-    padding: 18px;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
     min-height: auto;
+    overflow: visible;
+    padding: 18px 14px 20px;
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+  .quote-header {
+    position: static;
+    display: grid;
+    justify-items: stretch;
+    gap: 10px;
+    margin-bottom: 18px;
+    pointer-events: auto;
+  }
+
+  .quote-header img {
+    width: min(150px, 58vw);
+    justify-self: start;
+  }
+
+  .header-ribbon {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 36px;
+    padding: 8px 12px;
+    border-radius: 0 0 0 22px;
+    font-size: 12px;
+    line-height: 1.35;
+    white-space: normal;
+  }
+
+  .quote-footer {
+    position: static;
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    min-height: 0;
+    margin-top: 22px;
+    padding: 9px 12px;
+    border-radius: 22px;
+    font-size: 11px;
+    line-height: 1.35;
+  }
+
+  .footer-item {
+    white-space: normal;
+  }
+
+  .cover-title {
+    margin-top: 18px;
+    font-size: 18px;
+  }
+
+  .date-line,
+  .toc,
+  .cover-page .toc {
+    width: 100%;
+  }
+
+  .recipient {
+    margin-top: 18px;
+  }
+
+  .cover-page .toc tbody {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .clients-logo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px 20px;
+  }
+
+  .signature-block {
+    position: static;
+    margin-top: 24px;
+  }
+}
+
+@media screen and (max-width: 440px) {
+  .app-topbar,
+  .editor-panel,
+  .share-panel,
+  .settings-panel {
+    padding-inline: 10px;
+  }
+
+  button,
+  .action-button {
+    padding-inline: 10px;
+  }
+
+  .brand-lockup {
+    align-items: flex-start;
+  }
+
+  .brand-lockup span {
+    font-size: 11px;
+  }
+
+  .topbar-actions button,
+  .topbar-actions .action-button {
+    flex-basis: 100%;
+  }
+
+  .signature-pad {
+    height: clamp(190px, 36vh, 260px);
+  }
+
+  .quote-page {
+    padding: 16px 12px 18px;
+    font-size: 12.5px;
+  }
+
+  .page-title {
+    font-size: 16px;
+  }
+
+  .content-section h2 {
+    font-size: 15px;
+  }
+
+  .pricing-table {
+    font-size: 11px;
+  }
+
+  .pricing-table th,
+  .pricing-table td {
+    padding: 4px 5px;
+  }
+
+  .clients-logo-grid {
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+    gap: 16px;
+  }
+
+  .client-logo-card img {
+    max-height: calc(34px * var(--logo-scale, 1));
+  }
+}
+
+@media screen and (max-width: 360px) {
+  .quote-page {
+    font-size: 12px;
+  }
+
+  .clients-logo-grid {
+    grid-template-columns: 1fr;
   }
 }
 
