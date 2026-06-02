@@ -8,6 +8,8 @@
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
   const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
   const DEFAULT_CLIENT_COMPANY = "ארגון לדוגמה";
+  const DEFAULT_COURSE_COUNT = 3;
+  const LEGACY_DEFAULT_COURSE_COUNT = 4;
   const DEFAULT_SUBJECT_PREFIX = "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור ";
   const DEFAULT_SALESPERSON_SETTINGS = {
     selectedId: "default",
@@ -201,7 +203,7 @@
     clientLogos: DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo })),
     pricingItemsEdited: false,
     users: 100,
-    courseCount: 3,
+    courseCount: DEFAULT_COURSE_COUNT,
     courseNames: [],
     pricingPlanLabel: "השכרה - מסלול שנתי",
     pricingIntroText: "",
@@ -433,6 +435,7 @@
 
   function normalizeQuote(raw) {
     const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
+    const shouldMigrateLegacyCourseCount = isLegacyDefaultCourseCount(raw);
     let merged = { ...sampleQuote, ...(raw || {}) };
     merged = replaceDefaultCompanyReferences(merged, merged.clientCompany);
     if (subjectMatchesDefaultCompany(merged.subject, DEFAULT_CLIENT_COMPANY) && merged.clientCompany !== DEFAULT_CLIENT_COMPANY) {
@@ -442,7 +445,9 @@
     merged.quoteDate = parseIsoDate(merged.quoteDate) ? merged.quoteDate : todayIsoDate();
     merged.validDays = numberOr(merged.validDays, sampleQuote.validDays);
     merged.users = numberOr(merged.users, sampleQuote.users);
-    merged.courseCount = Math.max(0, Math.round(numberOr(merged.courseCount, 0)));
+    merged.courseCount = shouldMigrateLegacyCourseCount
+      ? DEFAULT_COURSE_COUNT
+      : Math.max(0, Math.round(numberOr(merged.courseCount, 0)));
     merged.additionalUserPrice = numberOr(merged.additionalUserPrice, sampleQuote.additionalUserPrice);
     merged.discountPercent = numberOr(merged.discountPercent, 0);
     merged.discountDisplayMode = ["percent", "amount"].includes(merged.discountDisplayMode)
@@ -511,6 +516,16 @@
     });
 
     return merged;
+  }
+
+  function isLegacyDefaultCourseCount(raw) {
+    if (!raw || numberOr(raw.courseCount, 0) !== LEGACY_DEFAULT_COURSE_COUNT || raw.pricingItemsEdited) return false;
+
+    const courseNames = Array.isArray(raw.courseNames)
+      ? raw.courseNames
+      : String(raw.courseNames || "").split(/\r?\n/);
+
+    return courseNames.every((name) => !String(name || "").trim());
   }
 
   function populateForm() {
