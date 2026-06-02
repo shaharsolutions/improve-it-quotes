@@ -43,6 +43,10 @@
           <strong>מאגר הצעות חתומות</strong>
           <p>המאגר נשמר בדפדפן המקומי. בחיבור עתידי לשרת, אזור זה יתחלף במאגר החברה המרכזי.</p>
         </div>
+        <label class="signed-archive-search">
+          חיפוש במאגר
+          <input id="signedArchiveSearch" type="search" placeholder="חיפוש לפי חברה, מספר הצעה, חותם או תאריך" />
+        </label>
         <div id="signedArchiveList" class="signed-archive-list"></div>
         <div class="section-actions">
           <button type="button" class="compact" id="closeSignedArchive">סגירה</button>
@@ -349,6 +353,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260602-signed-close-window" defer></script>
+    <script src="src/app.js?v=20260602-signed-archive-search" defer></script>
   </body>
 </html>

@@ -252,6 +252,7 @@
   const copyClientLinkButton = document.getElementById("copyClientLink");
   const signedArchivePanel = document.getElementById("signedArchivePanel");
   const signedArchiveList = document.getElementById("signedArchiveList");
+  const signedArchiveSearchField = document.getElementById("signedArchiveSearch");
   const settingsPanel = document.getElementById("settingsPanel");
   const salespersonSelectField = document.getElementById("salespersonSelect");
   const salespersonNameField = document.getElementById("salespersonName");
@@ -354,6 +355,7 @@
       sharePanel.hidden = true;
     });
     document.getElementById("showSignedArchive").addEventListener("click", showSignedArchive);
+    signedArchiveSearchField.addEventListener("input", renderSignedArchive);
     signedArchiveList.addEventListener("click", handleSignedArchiveClick);
     document.getElementById("showSettings").addEventListener("click", showSettings);
     document.getElementById("closeSettings").addEventListener("click", () => {
@@ -1688,9 +1690,14 @@
 
   function renderSignedArchive() {
     const archive = readSignedArchive();
-    signedArchiveList.innerHTML = archive.length
-      ? archive
-          .map((record, index) => {
+    const searchTerm = normalizeSearchText(signedArchiveSearchField.value);
+    const filteredArchive = archive
+      .map((record, index) => ({ record, index }))
+      .filter(({ record }) => !searchTerm || signedArchiveMatchesSearch(record, searchTerm));
+
+    signedArchiveList.innerHTML = filteredArchive.length
+      ? filteredArchive
+          .map(({ record, index }) => {
             const signedQuote = record.quote || {};
             return `
               <div class="signed-archive-row">
@@ -1708,7 +1715,26 @@
             `;
           })
           .join("")
-      : `<p class="empty-note">עדיין אין הצעות חתומות במאגר המקומי.</p>`;
+      : `<p class="empty-note">${archive.length ? "לא נמצאו הצעות חתומות שתואמות לחיפוש." : "עדיין אין הצעות חתומות במאגר המקומי."}</p>`;
+  }
+
+  function signedArchiveMatchesSearch(record, searchTerm) {
+    const signedQuote = record.quote || {};
+    return normalizeSearchText(
+      [
+        signedQuote.clientCompany,
+        signedQuote.quoteNumber,
+        signedQuote.subject,
+        signedQuote.clientSignerName,
+        signedQuote.clientSignerTitle,
+        signedQuote.clientSignerCompany,
+        formatDateTime(record.signedAt),
+      ].join(" ")
+    ).includes(searchTerm);
+  }
+
+  function normalizeSearchText(value) {
+    return String(value || "").toLocaleLowerCase("he").replace(/\s+/g, " ").trim();
   }
 
   async function handleSignedArchiveClick(event) {
@@ -1797,6 +1823,8 @@
     appDialogCancel.hidden = !showCancel;
     appDialogExtra.textContent = extraText;
     appDialogExtra.hidden = !extraText;
+    appDialogExtra.classList.toggle("primary", Boolean(extraText));
+    appDialogConfirm.classList.toggle("primary", !extraText);
     appDialog.hidden = false;
     appDialogConfirm.focus();
 

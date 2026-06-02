@@ -308,6 +308,14 @@ button.is-confirmed {
   height: 16px;
 }
 
+.signed-archive-search {
+  display: grid;
+  gap: 6px;
+  min-width: min(360px, 100%);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .signed-archive-list {
   max-height: 160px;
   overflow: auto;
