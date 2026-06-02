@@ -1644,7 +1644,7 @@
     const result = await showAppDialog({
       title: "ההצעה נשלחה",
       message: "ההצעה החתומה נשלחה ונשמרה במאגר ההצעות החתומות. ניתן לסגור את החלון.",
-      confirmText: "ההצעה נשלחה - אפשר לסגור את החלון",
+      confirmText: "ההצעה נשלחה - סגור את החלון",
       showCancel: false,
       extraText: "הורדת ההצעה החתומה",
       extraResult: "download",
@@ -1652,7 +1652,13 @@
 
     if (result === "download") {
       await downloadSignedQuote(signedQuote);
+    } else {
+      closeClientWindow();
     }
+  }
+
+  function closeClientWindow() {
+    window.close();
   }
 
   async function downloadSignedQuote(signedQuote) {

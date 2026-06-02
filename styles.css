@@ -18,6 +18,10 @@
   print-color-adjust: exact;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   min-height: 100%;
