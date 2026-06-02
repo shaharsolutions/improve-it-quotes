@@ -7,6 +7,8 @@
   const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
   const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
+  const DEFAULT_CLIENT_COMPANY = "ארגון לדוגמה";
+  const DEFAULT_SUBJECT_PREFIX = "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור ";
   const DEFAULT_SALESPERSON_SETTINGS = {
     selectedId: "default",
     advisors: [
@@ -184,10 +186,10 @@
     quoteNumber: "VER1",
     quoteDate: "",
     validDays: 30,
-    clientCompany: "ארגון לדוגמה",
+    clientCompany: DEFAULT_CLIENT_COMPANY,
     contactName: "איש קשר לדוגמה",
     contactTitle: "תפקיד לדוגמה",
-    subject: "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור ארגון לדוגמה",
+    subject: buildDefaultSubject(DEFAULT_CLIENT_COMPANY),
     signatoryName: DEFAULT_SALESPERSON_SETTINGS.advisors[0].name,
     signatoryTitle: DEFAULT_SALESPERSON_SETTINGS.advisors[0].title,
     clientSignerName: "",
@@ -431,6 +433,9 @@
   function normalizeQuote(raw) {
     const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
     const merged = { ...sampleQuote, ...(raw || {}) };
+    if (subjectMatchesDefaultCompany(merged.subject, DEFAULT_CLIENT_COMPANY) && merged.clientCompany !== DEFAULT_CLIENT_COMPANY) {
+      merged.subject = buildDefaultSubject(merged.clientCompany);
+    }
     merged.templateId = TEMPLATE_DEFINITIONS[merged.templateId] ? merged.templateId : getFallbackTemplateId();
     merged.quoteDate = parseIsoDate(merged.quoteDate) ? merged.quoteDate : todayIsoDate();
     merged.validDays = numberOr(merged.validDays, sampleQuote.validDays);
@@ -974,6 +979,8 @@
   function handleFormInput(event) {
     const field = event.target;
     if (!field.name || field.closest(".custom-item") || field.dataset.pricingOptionLabel) return;
+    const previousCompany = quote.clientCompany;
+    const previousSubject = quote.subject;
     const shouldRefreshPricingItems = [
       "users",
       "courseCount",
@@ -1005,6 +1012,13 @@
       quote[field.name] = field.value;
     }
 
+    if (field.name === "clientCompany" && shouldSyncSubjectForCompanyChange(previousSubject, previousCompany)) {
+      quote.subject = buildDefaultSubject(quote.clientCompany);
+      if (form.elements.subject) {
+        form.elements.subject.value = quote.subject;
+      }
+    }
+
     if (field.name === "quoteDate") {
       quote.discountValidUntil = monthEndIsoDate(quote.quoteDate);
       if (form.elements.discountValidUntil) {
@@ -1031,6 +1045,22 @@
 
     renderPricingItems();
     renderPreview();
+  }
+
+  function buildDefaultSubject(company) {
+    return `${DEFAULT_SUBJECT_PREFIX}${normalizeSubjectCompany(company)}`;
+  }
+
+  function normalizeSubjectCompany(company) {
+    return String(company || "").trim() || DEFAULT_CLIENT_COMPANY;
+  }
+
+  function subjectMatchesDefaultCompany(subject, company) {
+    return String(subject || "").trim() === buildDefaultSubject(company);
+  }
+
+  function shouldSyncSubjectForCompanyChange(subject, previousCompany) {
+    return subjectMatchesDefaultCompany(subject, previousCompany) || subjectMatchesDefaultCompany(subject, DEFAULT_CLIENT_COMPANY);
   }
 
   function handleCourseNameInput(event) {
