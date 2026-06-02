@@ -1627,12 +1627,13 @@ select:focus {
   }
 
   .quote-page {
+    --quote-mobile-padding-inline: 14px;
     width: 100%;
     max-width: 100%;
     height: auto;
     min-height: auto;
     overflow: visible;
-    padding: 18px 14px 20px;
+    padding: 18px var(--quote-mobile-padding-inline) 20px;
     font-size: 13px;
     line-height: 1.55;
   }
@@ -1640,8 +1641,11 @@ select:focus {
   .quote-header {
     position: static;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     justify-items: stretch;
     gap: 10px;
+    width: calc(100% + var(--quote-mobile-padding-inline));
+    margin-right: calc(-1 * var(--quote-mobile-padding-inline));
     margin-bottom: 18px;
     pointer-events: auto;
   }
@@ -1652,7 +1656,7 @@ select:focus {
   }
 
   .header-ribbon {
-    width: 100%;
+    width: calc(100% + var(--quote-mobile-padding-inline));
     min-width: 0;
     height: auto;
     min-height: 36px;
@@ -1660,6 +1664,7 @@ select:focus {
     border-radius: 0 0 0 22px;
     font-size: 12px;
     line-height: 1.35;
+    justify-self: end;
     white-space: normal;
   }
 
@@ -1738,11 +1743,12 @@ select:focus {
   }
 
   .signature-pad {
-    height: clamp(190px, 36vh, 260px);
+    height: clamp(180px, 32vh, 240px);
   }
 
   .quote-page {
-    padding: 16px 12px 18px;
+    --quote-mobile-padding-inline: 12px;
+    padding: 16px var(--quote-mobile-padding-inline) 18px;
     font-size: 12.5px;
   }
 
