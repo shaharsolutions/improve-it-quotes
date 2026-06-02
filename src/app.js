@@ -159,6 +159,7 @@
     { name: "שקל", src: "assets/brand/client-logos/shekel-group.png" },
     { name: "שלמה ביטוח", src: "assets/brand/client-logos/shlomo-insurance.png" },
     { name: "אל על", src: "assets/brand/client-logos/elal.png" },
+    { name: "אלקטרה", src: "assets/brand/client-logos/electra.png" },
     { name: "אבן קיסר", src: "assets/brand/client-logos/caesarstone.png" },
     { name: "איתוראן", src: "assets/brand/client-logos/ituran.png" },
     { name: "IKEA", src: "assets/brand/client-logos/ikea.png" },
@@ -1194,12 +1195,25 @@
         size: clampClientLogoSize(logo?.size ?? defaultClientLogoSize(logo)),
       }))
       .filter((logo) => logo.src);
+    addMissingSplitClientLogos(normalized);
 
     if (normalized.length === 1 && normalized[0].src === LEGACY_CLIENT_LOGOS_SRC) {
       return DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo }));
     }
 
     return normalized;
+  }
+
+  function addMissingSplitClientLogos(logos) {
+    const hasElectra = logos.some((logo) => cleanClientLogoSrc(logo.src).endsWith("/electra.png"));
+    const caesarstoneIndex = logos.findIndex((logo) => cleanClientLogoSrc(logo.src).endsWith("/caesarstone.png"));
+    if (hasElectra || caesarstoneIndex < 0) return;
+
+    logos.splice(caesarstoneIndex, 0, {
+      name: "אלקטרה",
+      src: versionClientLogoSrc("assets/brand/client-logos/electra.png"),
+      size: 100,
+    });
   }
 
   function sanitizeClientLogoSrc(value) {
@@ -1211,11 +1225,25 @@
   }
 
   function versionClientLogoSrc(src) {
-    const cleanSrc = String(src || "").replace(/\?.*$/, "");
-    if (cleanSrc === "assets/brand/client-logos/discount.png" || cleanSrc === "assets/brand/client-logos/bazan.png") {
-      return `${cleanSrc}?v=20260601-crop`;
+    const cleanSrc = cleanClientLogoSrc(src);
+    const logoVersions = {
+      "assets/brand/client-logos/amdocs.png": "20260602-crop",
+      "assets/brand/client-logos/bazan.png": "20260601-crop",
+      "assets/brand/client-logos/caesarstone.png": "20260602-crop",
+      "assets/brand/client-logos/discount.png": "20260601-crop",
+      "assets/brand/client-logos/electra.png": "20260602-crop",
+      "assets/brand/client-logos/israel-police.png": "20260602-crop",
+      "assets/brand/client-logos/shlomo-insurance.png": "20260602-crop",
+      "assets/brand/client-logos/super-pharm.png": "20260602-crop",
+    };
+    if (logoVersions[cleanSrc]) {
+      return `${cleanSrc}?v=${logoVersions[cleanSrc]}`;
     }
     return src;
+  }
+
+  function cleanClientLogoSrc(src) {
+    return String(src || "").replace(/\?.*$/, "");
   }
 
   function clampClientLogoSize(value) {
@@ -1223,7 +1251,7 @@
   }
 
   function defaultClientLogoSize(logo) {
-    const src = String(logo?.src || "").replace(/\?.*$/, "");
+    const src = cleanClientLogoSrc(logo?.src);
     if (src.endsWith("/bazan.png") || String(logo?.name || "").includes("בזן")) return 135;
     return 100;
   }
@@ -1663,11 +1691,9 @@
       return;
     }
 
-    if (!quote.clientSignatureDate) {
-      quote.clientSignatureDate = todayIsoDate();
-      const dateField = form.elements.clientSignatureDate;
-      if (dateField) dateField.value = quote.clientSignatureDate;
-    }
+    quote.clientSignatureDate = todayIsoDate();
+    const dateField = form.elements.clientSignatureDate;
+    if (dateField) dateField.value = quote.clientSignatureDate;
 
     sendButton.disabled = true;
     sendButton.textContent = "שולח חתימה...";
