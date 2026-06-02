@@ -254,6 +254,7 @@
   const authScreen = document.getElementById("authScreen");
   const authForm = document.getElementById("authForm");
   const authPasswordField = document.getElementById("authPassword");
+  const toggleAuthPasswordButton = document.getElementById("toggleAuthPassword");
   const authRememberField = document.getElementById("authRemember");
   const authError = document.getElementById("authError");
   const form = document.getElementById("quoteForm");
@@ -324,7 +325,16 @@
     document.body.classList.add("auth-required");
     authScreen.hidden = false;
     authForm.addEventListener("submit", handleAuthSubmit);
+    toggleAuthPasswordButton.addEventListener("click", toggleAuthPasswordVisibility);
     window.setTimeout(() => authPasswordField.focus(), 0);
+  }
+
+  function toggleAuthPasswordVisibility() {
+    const shouldShow = authPasswordField.type === "password";
+    authPasswordField.type = shouldShow ? "text" : "password";
+    toggleAuthPasswordButton.textContent = shouldShow ? "הסתר" : "הצג";
+    toggleAuthPasswordButton.setAttribute("aria-pressed", String(shouldShow));
+    authPasswordField.focus();
   }
 
   function handleAuthSubmit(event) {

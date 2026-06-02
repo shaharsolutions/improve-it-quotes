@@ -13,7 +13,10 @@
         <h1 id="authTitle">כניסה למחולל הצעות מחיר</h1>
         <label>
           סיסמה
-          <input id="authPassword" type="password" autocomplete="current-password" />
+          <span class="auth-password-row">
+            <input id="authPassword" type="password" autocomplete="current-password" />
+            <button type="button" class="compact" id="toggleAuthPassword" aria-pressed="false">הצג</button>
+          </span>
         </label>
         <label class="auth-remember">
           <input id="authRemember" type="checkbox" />
@@ -371,6 +374,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260602-generator-auth-logout" defer></script>
+    <script src="src/app.js?v=20260602-generator-auth-password-toggle" defer></script>
   </body>
 </html>

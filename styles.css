@@ -136,6 +136,16 @@ body.auth-required .app-shell {
   text-align: left;
 }
 
+.auth-password-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.auth-password-row button {
+  min-width: 58px;
+}
+
 .auth-remember {
   width: fit-content;
   display: inline-flex;
