@@ -4,9 +4,26 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>מחולל הצעות מחיר | Improve-IT</title>
-    <link rel="stylesheet" href="styles.css?v=20260602-quote-mobile-ribbon" />
+    <link rel="stylesheet" href="styles.css?v=20260602-generator-auth" />
   </head>
-  <body>
+  <body class="auth-required">
+    <section class="auth-screen" id="authScreen" aria-labelledby="authTitle">
+      <form class="auth-card" id="authForm">
+        <img src="assets/brand/improve-it-logo.png" alt="Improve-IT" />
+        <h1 id="authTitle">כניסה למחולל הצעות מחיר</h1>
+        <label>
+          סיסמה
+          <input id="authPassword" type="password" autocomplete="current-password" />
+        </label>
+        <label class="auth-remember">
+          <input id="authRemember" type="checkbox" />
+          <span>זכור אותי</span>
+        </label>
+        <p class="auth-error" id="authError" hidden>הסיסמה אינה נכונה.</p>
+        <button type="submit" class="primary">כניסה</button>
+      </form>
+    </section>
+
     <div class="app-shell">
       <header class="app-topbar">
         <div class="brand-lockup" aria-label="Improve-IT">
@@ -22,6 +39,7 @@
           <button type="button" id="createClientLink">קישור ללקוח</button>
           <button type="button" id="showSignedArchive">מאגר חתומות</button>
           <button type="button" id="showSettings">הגדרות</button>
+          <button type="button" id="logoutGenerator">התנתק</button>
           <button type="button" class="primary" id="printQuote">הדפסה / PDF</button>
         </div>
       </header>
@@ -353,6 +371,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260602-default-course-count" defer></script>
+    <script src="src/app.js?v=20260602-generator-auth-logout" defer></script>
   </body>
 </html>

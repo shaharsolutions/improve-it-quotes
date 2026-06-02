@@ -1,5 +1,7 @@
 (function () {
   const STORAGE_KEY = "improve-it-quote-generator";
+  const GENERATOR_AUTH_KEY = "improve-it-generator-authenticated";
+  const GENERATOR_PASSWORD = "Improve-IT2026";
   const SIGNED_ARCHIVE_KEY = "improve-it-signed-quotes";
   const TEMPLATE_SETTINGS_KEY = "improve-it-template-settings";
   const SALESPERSON_SETTINGS_KEY = "improve-it-salesperson-settings";
@@ -247,7 +249,13 @@
   let clientLogoSettings = DEFAULT_CLIENT_LOGOS.map((logo) => ({ ...logo }));
   let clientLogoSaveTimer = null;
   const isClientMode = getHashParam("mode") === "client";
+  const isPdfMode = getHashParam("pdf") === "1";
 
+  const authScreen = document.getElementById("authScreen");
+  const authForm = document.getElementById("authForm");
+  const authPasswordField = document.getElementById("authPassword");
+  const authRememberField = document.getElementById("authRemember");
+  const authError = document.getElementById("authError");
   const form = document.getElementById("quoteForm");
   const preview = document.getElementById("proposalPreview");
   const pricingItems = document.getElementById("pricingItems");
@@ -285,7 +293,64 @@
   let signatureResizeTimer = null;
   let activeSectionEditorKey = "";
 
-  init();
+  start();
+
+  function start() {
+    if (requiresGeneratorAuth() && !isGeneratorAuthenticated()) {
+      setupAuthScreen();
+      return;
+    }
+
+    unlockGenerator();
+    init();
+  }
+
+  function requiresGeneratorAuth() {
+    return !isClientMode && !isPdfMode;
+  }
+
+  function isGeneratorAuthenticated() {
+    try {
+      return (
+        window.sessionStorage.getItem(GENERATOR_AUTH_KEY) === "1" ||
+        window.localStorage.getItem(GENERATOR_AUTH_KEY) === "1"
+      );
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function setupAuthScreen() {
+    document.body.classList.add("auth-required");
+    authScreen.hidden = false;
+    authForm.addEventListener("submit", handleAuthSubmit);
+    window.setTimeout(() => authPasswordField.focus(), 0);
+  }
+
+  function handleAuthSubmit(event) {
+    event.preventDefault();
+    if (authPasswordField.value !== GENERATOR_PASSWORD) {
+      authError.hidden = false;
+      authPasswordField.select();
+      return;
+    }
+
+    try {
+      const storage = authRememberField.checked ? window.localStorage : window.sessionStorage;
+      storage.setItem(GENERATOR_AUTH_KEY, "1");
+    } catch (error) {
+      // Authentication still applies for the current page even if browser storage is unavailable.
+    }
+
+    authError.hidden = true;
+    unlockGenerator();
+    init();
+  }
+
+  function unlockGenerator() {
+    document.body.classList.remove("auth-required");
+    authScreen.hidden = true;
+  }
 
   async function init() {
     setupSupabase();
@@ -363,6 +428,7 @@
     signedArchiveSearchField.addEventListener("input", renderSignedArchive);
     signedArchiveList.addEventListener("click", handleSignedArchiveClick);
     document.getElementById("showSettings").addEventListener("click", showSettings);
+    document.getElementById("logoutGenerator").addEventListener("click", logoutGenerator);
     document.getElementById("closeSettings").addEventListener("click", () => {
       settingsPanel.hidden = true;
     });
@@ -587,6 +653,17 @@
   function handleTopbarActionClick(event) {
     if (!event.target.closest("button, .action-button")) return;
     scrollPageToTop();
+  }
+
+  function logoutGenerator() {
+    try {
+      window.sessionStorage.removeItem(GENERATOR_AUTH_KEY);
+      window.localStorage.removeItem(GENERATOR_AUTH_KEY);
+    } catch (error) {
+      // Reload below still returns the page to the auth gate for storage-restricted sessions.
+    }
+
+    window.location.reload();
   }
 
   function scrollPageToTop() {
