@@ -368,6 +368,9 @@
     clientLogoSettings = await readClientLogoSettings();
     salespersonSettings = await readSalespersonSettings();
     quote = normalizeQuote(await readInitialQuote());
+    if (isClientMode) {
+      updateClientSignatureDateToToday();
+    }
     if (!isClientMode) {
       applySalespersonSettingsToQuote();
       applyClientLogoSettingsToQuote();
@@ -1793,9 +1796,7 @@
       return;
     }
 
-    quote.clientSignatureDate = todayIsoDate();
-    const dateField = form.elements.clientSignatureDate;
-    if (dateField) dateField.value = quote.clientSignatureDate;
+    updateClientSignatureDateToToday();
 
     sendButton.disabled = true;
     sendButton.textContent = "שולח חתימה...";
@@ -2408,13 +2409,15 @@
     signatureLastPoint = null;
     quote.clientSignatureData = signatureCanvas.toDataURL("image/png");
 
-    if (!quote.clientSignatureDate) {
-      quote.clientSignatureDate = todayIsoDate();
-      const dateField = form.elements.clientSignatureDate;
-      if (dateField) dateField.value = quote.clientSignatureDate;
-    }
+    updateClientSignatureDateToToday();
 
     renderPreview();
+  }
+
+  function updateClientSignatureDateToToday() {
+    quote.clientSignatureDate = todayIsoDate();
+    const dateField = form.elements.clientSignatureDate;
+    if (dateField) dateField.value = quote.clientSignatureDate;
   }
 
   function getSignaturePoint(event) {
