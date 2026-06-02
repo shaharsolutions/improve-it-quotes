@@ -1496,6 +1496,7 @@ select:focus {
   }
 
   .app-topbar,
+  .app-dialog,
   .editor-panel {
     display: none;
   }

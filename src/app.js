@@ -270,6 +270,7 @@
   const appDialogMessage = document.getElementById("appDialogMessage");
   const appDialogConfirm = document.getElementById("appDialogConfirm");
   const appDialogCancel = document.getElementById("appDialogCancel");
+  const appDialogExtra = document.getElementById("appDialogExtra");
   const signatureCanvas = document.getElementById("clientSignaturePad");
   const clearSignatureButton = document.getElementById("clearSignature");
   let signatureContext = null;
@@ -1528,6 +1529,16 @@
     return `${PDF_RENDER_URL}?${params.toString()}`;
   }
 
+  async function buildLinkedPdfDownloadUrl(pdfQuote) {
+    const encoded = await compressQuotePayload(JSON.stringify(pdfQuote));
+    const params = new URLSearchParams({
+      filename: buildPdfFilename(pdfQuote),
+      download: "1",
+      z: encoded,
+    });
+    return `${PDF_RENDER_URL}?${params.toString()}`;
+  }
+
   function buildPdfFilename(pdfQuote) {
     const quoteNumber = String(pdfQuote.quoteNumber || "quote").trim() || "quote";
     return `improve-it-${quoteNumber}.pdf`;
@@ -1619,7 +1630,7 @@
       await saveSignedQuoteToSupabase(signedRecord);
       await saveSignedQuoteToLocalServer(signedRecord);
       renderPreview();
-      await showAppAlert("ההצעה נשמרה", "ההצעה החתומה נשמרה במאגר ההצעות החתומות.");
+      await showSignedQuoteSentDialog(signedRecord.quote);
     } catch (error) {
       console.error("Could not send signed quote", error);
       await showAppAlert("לא ניתן לשלוח חתימה", "לא הצלחנו לשמור את ההצעה החתומה. נסו שוב בעוד רגע.");
@@ -1627,6 +1638,38 @@
       sendButton.disabled = false;
       sendButton.textContent = "מאשר/ת את ההצעה ושולח/ת חתימה";
     }
+  }
+
+  async function showSignedQuoteSentDialog(signedQuote) {
+    const result = await showAppDialog({
+      title: "ההצעה נשלחה",
+      message: "ההצעה החתומה נשלחה ונשמרה במאגר ההצעות החתומות. ניתן לסגור את החלון.",
+      confirmText: "ההצעה נשלחה - אפשר לסגור את החלון",
+      showCancel: false,
+      extraText: "הורדת ההצעה החתומה",
+      extraResult: "download",
+    });
+
+    if (result === "download") {
+      await downloadSignedQuote(signedQuote);
+    }
+  }
+
+  async function downloadSignedQuote(signedQuote) {
+    quote = normalizeQuote(signedQuote || quote);
+    storageSet(STORAGE_KEY, JSON.stringify(quote));
+    populateForm();
+    renderCourseNameInputs();
+    renderPricingItems();
+    redrawSignaturePad();
+    renderPreview();
+
+    if (shouldUseLocalServer()) {
+      window.location.href = await buildLinkedPdfDownloadUrl(quote);
+      return;
+    }
+
+    openPrintDialog();
   }
 
   async function showSignedArchive() {
@@ -1736,14 +1779,18 @@
     confirmText,
     showCancel,
     cancelText = "ביטול",
+    extraText = "",
     confirmResult = true,
     cancelResult = false,
+    extraResult = "extra",
   }) {
     appDialogTitle.textContent = title;
     appDialogMessage.innerHTML = `<p>${escapeHtml(message)}</p>`;
     appDialogConfirm.textContent = confirmText;
     appDialogCancel.textContent = cancelText;
     appDialogCancel.hidden = !showCancel;
+    appDialogExtra.textContent = extraText;
+    appDialogExtra.hidden = !extraText;
     appDialog.hidden = false;
     appDialogConfirm.focus();
 
@@ -1752,12 +1799,14 @@
         appDialog.hidden = true;
         appDialogConfirm.removeEventListener("click", onConfirm);
         appDialogCancel.removeEventListener("click", onCancel);
+        appDialogExtra.removeEventListener("click", onExtra);
         appDialog.removeEventListener("click", onBackdrop);
         document.removeEventListener("keydown", onKeydown);
         resolve(result);
       };
       const onConfirm = () => close(confirmResult);
       const onCancel = () => close(cancelResult);
+      const onExtra = () => close(extraResult);
       const onBackdrop = (event) => {
         if (event.target === appDialog && showCancel) close(null);
       };
@@ -1767,6 +1816,7 @@
 
       appDialogConfirm.addEventListener("click", onConfirm);
       appDialogCancel.addEventListener("click", onCancel);
+      appDialogExtra.addEventListener("click", onExtra);
       appDialog.addEventListener("click", onBackdrop);
       document.addEventListener("keydown", onKeydown);
     });
