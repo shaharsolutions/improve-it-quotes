@@ -432,7 +432,8 @@
 
   function normalizeQuote(raw) {
     const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
-    const merged = { ...sampleQuote, ...(raw || {}) };
+    let merged = { ...sampleQuote, ...(raw || {}) };
+    merged = replaceDefaultCompanyReferences(merged, merged.clientCompany);
     if (subjectMatchesDefaultCompany(merged.subject, DEFAULT_CLIENT_COMPANY) && merged.clientCompany !== DEFAULT_CLIENT_COMPANY) {
       merged.subject = buildDefaultSubject(merged.clientCompany);
     }
@@ -1053,6 +1054,27 @@
 
   function normalizeSubjectCompany(company) {
     return String(company || "").trim() || DEFAULT_CLIENT_COMPANY;
+  }
+
+  function replaceDefaultCompanyReferences(value, company) {
+    const replacement = normalizeSubjectCompany(company);
+    if (replacement === DEFAULT_CLIENT_COMPANY) return value;
+
+    if (typeof value === "string") {
+      return value.split(DEFAULT_CLIENT_COMPANY).join(replacement);
+    }
+
+    if (Array.isArray(value)) {
+      return value.map((item) => replaceDefaultCompanyReferences(item, replacement));
+    }
+
+    if (value && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, item]) => [key, replaceDefaultCompanyReferences(item, replacement)])
+      );
+    }
+
+    return value;
   }
 
   function subjectMatchesDefaultCompany(subject, company) {
