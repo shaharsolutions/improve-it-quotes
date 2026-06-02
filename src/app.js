@@ -1,7 +1,7 @@
 (function () {
   const STORAGE_KEY = "improve-it-quote-generator";
   const GENERATOR_AUTH_KEY = "improve-it-generator-authenticated";
-  const GENERATOR_PASSWORD = "Improve-IT2026";
+  const GENERATOR_PASSWORD = "improve-it2026";
   const SIGNED_ARCHIVE_KEY = "improve-it-signed-quotes";
   const TEMPLATE_SETTINGS_KEY = "improve-it-template-settings";
   const SALESPERSON_SETTINGS_KEY = "improve-it-salesperson-settings";
