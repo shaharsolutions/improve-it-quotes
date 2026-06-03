@@ -1218,7 +1218,9 @@ select:focus {
 
 .content-section p {
   margin: 0 0 12px;
+  direction: rtl;
   text-align: right;
+  unicode-bidi: plaintext;
 }
 
 .method-diagram {
