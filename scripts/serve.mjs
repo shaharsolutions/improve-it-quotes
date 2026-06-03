@@ -95,7 +95,19 @@ async function handleSharedQuotesRequest(request, response) {
   if (request.method === "GET") {
     const url = new URL(request.url || "", `http://localhost:${port}`);
     const id = url.searchParams.get("id");
-    const quote = id ? readLocalSharedQuotes()[id] : null;
+    const quotes = readLocalSharedQuotes();
+
+    if (!id) {
+      sendJson(
+        response,
+        200,
+        Object.entries(quotes).map(([recordId, record]) => normalizeLocalSharedQuoteRecord(recordId, record))
+      );
+      return;
+    }
+
+    const record = normalizeLocalSharedQuoteRecord(id, quotes[id]);
+    const quote = record.quote;
 
     if (!quote) {
       sendJson(response, 404, { error: "Shared quote not found" });
@@ -107,14 +119,42 @@ async function handleSharedQuotesRequest(request, response) {
   }
 
   if (request.method === "POST") {
+    const url = new URL(request.url || "", `http://localhost:${port}`);
     const record = JSON.parse(await readBody(request) || "{}");
+
+    if (url.searchParams.get("action") === "open") {
+      if (!record?.id) {
+        sendJson(response, 400, { error: "Missing shared quote id" });
+        return;
+      }
+
+      const quotes = readLocalSharedQuotes();
+      const existing = normalizeLocalSharedQuoteRecord(record.id, quotes[record.id]);
+      if (!existing.quote) {
+        sendJson(response, 404, { error: "Shared quote not found" });
+        return;
+      }
+
+      existing.openEvents.push({ openedAt: record.openedAt || new Date().toISOString() });
+      quotes[record.id] = existing;
+      writeLocalSharedQuotes(quotes);
+      sendJson(response, 200, { ok: true });
+      return;
+    }
+
     if (!record?.id || !record?.quote || typeof record.quote !== "object") {
       sendJson(response, 400, { error: "Missing shared quote record" });
       return;
     }
 
     const quotes = readLocalSharedQuotes();
-    quotes[record.id] = record.quote;
+    const existing = normalizeLocalSharedQuoteRecord(record.id, quotes[record.id]);
+    quotes[record.id] = {
+      id: record.id,
+      createdAt: existing.createdAt || record.createdAt || new Date().toISOString(),
+      quote: record.quote,
+      openEvents: existing.openEvents,
+    };
     writeLocalSharedQuotes(quotes);
     sendJson(response, 200, { ok: true });
     return;
@@ -135,6 +175,36 @@ function readLocalSharedQuotes() {
 function writeLocalSharedQuotes(quotes) {
   mkdirSync(dirname(sharedQuotesPath), { recursive: true });
   writeFileSync(sharedQuotesPath, JSON.stringify(quotes, null, 2), "utf8");
+}
+
+function normalizeLocalSharedQuoteRecord(id, record) {
+  if (!record) {
+    return { id, createdAt: "", quote: null, openEvents: [] };
+  }
+
+  if (record.quote && typeof record.quote === "object") {
+    return {
+      id: record.id || id,
+      createdAt: record.createdAt || record.created_at || "",
+      quote: record.quote,
+      openEvents: normalizeOpenEvents(record.openEvents),
+    };
+  }
+
+  return {
+    id,
+    createdAt: "",
+    quote: record,
+    openEvents: [],
+  };
+}
+
+function normalizeOpenEvents(openEvents) {
+  return Array.isArray(openEvents)
+    ? openEvents
+        .map((event) => ({ openedAt: typeof event === "string" ? event : event?.openedAt }))
+        .filter((event) => event.openedAt)
+    : [];
 }
 
 async function handleSignedArchiveRequest(request, response) {

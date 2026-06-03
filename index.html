@@ -40,6 +40,7 @@
           <button type="button" id="resetSample">דוגמה</button>
           <button type="button" id="saveData">שמירה</button>
           <button type="button" id="createClientLink">קישור ללקוח</button>
+          <button type="button" id="showQuoteTracking">מעקב</button>
           <button type="button" id="showSignedArchive">מאגר חתומות</button>
           <button type="button" id="showSettings">הגדרות</button>
           <button type="button" id="logoutGenerator">התנתק</button>
@@ -57,6 +58,21 @@
           <button type="button" class="compact" id="copyClientLink">העתקת קישור</button>
           <button type="button" class="compact" id="closeSharePanel">סגירה</button>
         </div>
+      </section>
+
+      <section class="share-panel quote-tracking-panel" id="quoteTrackingPanel" hidden>
+        <div class="signed-archive-intro">
+          <strong>מעקב הצעות שנשלחו</strong>
+          <p>מעקב אחרי קישורים שנשלחו ללקוחות ופתיחות שבוצעו בפועל.</p>
+        </div>
+        <label class="signed-archive-search">
+          חיפוש במעקב
+          <input id="quoteTrackingSearch" type="search" placeholder="חיפוש לפי חברה, מספר הצעה, נושא או תאריך" />
+        </label>
+        <div class="section-actions">
+          <button type="button" class="compact" id="closeQuoteTracking">סגירה</button>
+        </div>
+        <div id="quoteTrackingList" class="signed-archive-list quote-tracking-list"></div>
       </section>
 
       <section class="share-panel signed-archive-panel" id="signedArchivePanel" hidden>
@@ -374,6 +390,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260602-client-signature-date-on-open" defer></script>
+    <script src="src/app.js?v=20260603-quote-tracking" defer></script>
   </body>
 </html>

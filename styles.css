@@ -264,6 +264,11 @@ body.auth-required .app-shell {
   align-items: end;
 }
 
+.quote-tracking-panel {
+  grid-template-columns: minmax(260px, 1fr) minmax(320px, 520px) auto;
+  align-items: end;
+}
+
 .signed-archive-intro {
   align-self: center;
 }
@@ -459,6 +464,21 @@ body.auth-required .app-shell {
 .signed-archive-row strong {
   font-size: 13px;
   overflow-wrap: anywhere;
+}
+
+.quote-tracking-subject {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.quote-tracking-times {
+  display: grid;
+  gap: 4px;
+  max-height: 110px;
+  margin: 0;
+  padding: 0 18px 0 0;
+  overflow: auto;
+  color: var(--muted);
 }
 
 button.danger {

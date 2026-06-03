@@ -3,6 +3,7 @@
   const GENERATOR_AUTH_KEY = "improve-it-generator-authenticated";
   const GENERATOR_PASSWORD = "improve-it2026";
   const SIGNED_ARCHIVE_KEY = "improve-it-signed-quotes";
+  const QUOTE_TRACKING_KEY = "improve-it-quote-tracking";
   const TEMPLATE_SETTINGS_KEY = "improve-it-template-settings";
   const SALESPERSON_SETTINGS_KEY = "improve-it-salesperson-settings";
   const CLIENT_LOGO_SETTINGS_KEY = "improve-it-client-logo-settings";
@@ -267,6 +268,9 @@
   const signedArchivePanel = document.getElementById("signedArchivePanel");
   const signedArchiveList = document.getElementById("signedArchiveList");
   const signedArchiveSearchField = document.getElementById("signedArchiveSearch");
+  const quoteTrackingPanel = document.getElementById("quoteTrackingPanel");
+  const quoteTrackingList = document.getElementById("quoteTrackingList");
+  const quoteTrackingSearchField = document.getElementById("quoteTrackingSearch");
   const settingsPanel = document.getElementById("settingsPanel");
   const salespersonSelectField = document.getElementById("salespersonSelect");
   const salespersonNameField = document.getElementById("salespersonName");
@@ -440,6 +444,11 @@
     document.getElementById("showSignedArchive").addEventListener("click", showSignedArchive);
     signedArchiveSearchField.addEventListener("input", renderSignedArchive);
     signedArchiveList.addEventListener("click", handleSignedArchiveClick);
+    document.getElementById("showQuoteTracking").addEventListener("click", showQuoteTracking);
+    quoteTrackingSearchField.addEventListener("input", renderQuoteTracking);
+    document.getElementById("closeQuoteTracking").addEventListener("click", () => {
+      quoteTrackingPanel.hidden = true;
+    });
     document.getElementById("showSettings").addEventListener("click", showSettings);
     document.getElementById("logoutGenerator").addEventListener("click", logoutGenerator);
     document.getElementById("closeSettings").addEventListener("click", () => {
@@ -475,7 +484,10 @@
     const sharedQuoteId = getHashParam("id");
     if (sharedQuoteId) {
       const sharedQuote = await readSharedQuote(sharedQuoteId);
-      if (sharedQuote) return sharedQuote;
+      if (sharedQuote) {
+        if (isClientMode) recordSharedQuoteOpen(sharedQuoteId);
+        return sharedQuote;
+      }
     }
 
     const compressedHashData = getHashParam("z");
@@ -512,11 +524,14 @@
     return new URLSearchParams(window.location.hash.replace(/^#/, "")).get(name);
   }
 
-  function normalizeQuote(raw) {
+  function normalizeQuote(raw, options = {}) {
+    const shouldSyncDefaultTexts = options.syncDefaultTexts !== false;
     const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
     const shouldMigrateLegacyCourseCount = isLegacyDefaultCourseCount(raw);
     let merged = { ...sampleQuote, ...(raw || {}) };
-    merged = applyDefaultCompanyReferences(merged, raw || {});
+    if (shouldSyncDefaultTexts) {
+      merged = applyDefaultCompanyReferences(merged, raw || {});
+    }
     if (subjectMatchesDefaultCompany(merged.subject, DEFAULT_CLIENT_COMPANY) && merged.clientCompany !== DEFAULT_CLIENT_COMPANY) {
       merged.subject = buildDefaultSubject(merged.clientCompany);
     }
@@ -661,6 +676,7 @@
     settingsPanel.hidden = false;
     sharePanel.hidden = true;
     signedArchivePanel.hidden = true;
+    quoteTrackingPanel.hidden = true;
   }
 
   function handleTopbarActionClick(event) {
@@ -1652,6 +1668,7 @@
       clientLinkOutput.value = link;
       sharePanel.hidden = false;
       signedArchivePanel.hidden = true;
+      quoteTrackingPanel.hidden = true;
       const copied = await copyText(link);
       setCopyFeedback(copied ? "הקישור הועתק" : "הקישור מוכן להעתקה");
     } finally {
@@ -1908,6 +1925,8 @@
     renderSignedArchive();
     signedArchivePanel.hidden = false;
     sharePanel.hidden = true;
+    quoteTrackingPanel.hidden = true;
+    settingsPanel.hidden = true;
   }
 
   function renderSignedArchive() {
@@ -2203,11 +2222,11 @@
 
   async function saveSharedQuote(payload) {
     const id = createShortId("q");
-    const savedToSupabase = await saveSharedQuoteToSupabase(id, payload);
-    if (savedToSupabase) return id;
-
+    const trackingRecord = buildQuoteTrackingRecord(id, payload);
     const savedToLocalServer = await saveSharedQuoteToLocalServer(id, payload);
-    return savedToLocalServer ? id : "";
+    saveQuoteTrackingRecord(trackingRecord);
+    const savedToSupabase = await saveSharedQuoteToSupabase(id, payload);
+    return savedToLocalServer || savedToSupabase ? id : "";
   }
 
   async function readSharedQuote(id) {
@@ -2255,7 +2274,7 @@
       const response = await fetch(LOCAL_SHARED_QUOTE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, quote: payload }),
+        body: JSON.stringify({ id, quote: payload, createdAt: new Date().toISOString() }),
       });
       if (!response.ok) throw new Error(`Local shared quote save failed: ${response.status}`);
       return true;
@@ -2277,6 +2296,201 @@
       console.warn("Could not load shared quote from local server", error);
       return null;
     }
+  }
+
+  async function recordSharedQuoteOpen(id) {
+    if (!id) return;
+    const openedAt = new Date().toISOString();
+    appendQuoteTrackingOpen(id, openedAt);
+    await recordSharedQuoteOpenOnLocalServer(id, openedAt);
+  }
+
+  async function recordSharedQuoteOpenOnLocalServer(id, openedAt) {
+    if (!shouldUseLocalServer()) return false;
+
+    try {
+      const response = await fetch(`${LOCAL_SHARED_QUOTE_URL}?action=open`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, openedAt }),
+      });
+      if (!response.ok) throw new Error(`Local shared quote tracking failed: ${response.status}`);
+      return true;
+    } catch (error) {
+      console.warn("Could not record shared quote open on local server", error);
+      return false;
+    }
+  }
+
+  async function showQuoteTracking() {
+    await syncQuoteTrackingFromLocalServer();
+    renderQuoteTracking();
+    quoteTrackingPanel.hidden = false;
+    sharePanel.hidden = true;
+    signedArchivePanel.hidden = true;
+    settingsPanel.hidden = true;
+  }
+
+  function renderQuoteTracking() {
+    const records = readQuoteTracking().filter(isVisibleQuoteTrackingRecord);
+    const searchTerm = normalizeSearchText(quoteTrackingSearchField.value);
+    const filteredRecords = records.filter((record) => !searchTerm || quoteTrackingMatchesSearch(record, searchTerm));
+
+    quoteTrackingList.innerHTML = filteredRecords.length
+      ? filteredRecords.map(renderQuoteTrackingRecord).join("")
+      : `<p class="empty-note">${records.length ? "לא נמצאו הצעות שתואמות לחיפוש." : "עדיין אין קישורים שנשלחו למעקב."}</p>`;
+  }
+
+  function renderQuoteTrackingRecord(record) {
+    const quote = record.quote || {};
+    const openEvents = Array.isArray(record.openEvents) ? record.openEvents : [];
+    const lastOpenedAt = openEvents[openEvents.length - 1]?.openedAt || "";
+    const openTimes = openEvents.length
+      ? `<ol class="quote-tracking-times">${openEvents.map((event) => `<li>${escapeHtml(formatDateTime(event.openedAt))}</li>`).join("")}</ol>`
+      : `<p class="empty-note">עדיין לא נרשמו פתיחות.</p>`;
+
+    return `
+      <div class="signed-archive-row quote-tracking-row">
+        <div class="signed-archive-details">
+          <strong>${escapeHtml(quote.clientCompany || "ללא חברה")} - ${escapeHtml(quote.quoteNumber || "ללא מספר")}</strong>
+          <div class="signed-archive-meta">
+            <span>נשלח: ${escapeHtml(formatDateTime(record.createdAt))}</span>
+            <span>פתיחות: ${openEvents.length}</span>
+            <span>פתיחה אחרונה: ${escapeHtml(lastOpenedAt ? formatDateTime(lastOpenedAt) : "טרם נפתח")}</span>
+          </div>
+          <div class="quote-tracking-subject">${escapeHtml(quote.subject || "")}</div>
+          ${openTimes}
+        </div>
+      </div>
+    `;
+  }
+
+  function quoteTrackingMatchesSearch(record, searchTerm) {
+    const quote = record.quote || {};
+    return normalizeSearchText(
+      [
+        quote.clientCompany,
+        quote.quoteNumber,
+        quote.subject,
+        formatDateTime(record.createdAt),
+        ...(record.openEvents || []).map((event) => formatDateTime(event.openedAt)),
+      ].join(" ")
+    ).includes(searchTerm);
+  }
+
+  function isVisibleQuoteTrackingRecord(record) {
+    const quote = record.quote || {};
+    return Boolean(
+      record.createdAt ||
+        record.openEvents?.length ||
+        quote.clientCompany ||
+        quote.quoteNumber ||
+        quote.subject
+    );
+  }
+
+  async function syncQuoteTrackingFromLocalServer() {
+    if (!shouldUseLocalServer()) return;
+
+    try {
+      const response = await fetch(LOCAL_SHARED_QUOTE_URL);
+      if (!response.ok) throw new Error(`Local quote tracking failed: ${response.status}`);
+      const records = await response.json();
+      if (Array.isArray(records)) {
+        writeQuoteTracking(mergeQuoteTrackingRecords(records, readQuoteTracking()));
+      }
+    } catch (error) {
+      console.warn("Could not load quote tracking from local server", error);
+    }
+  }
+
+  function buildQuoteTrackingRecord(id, payload) {
+    return {
+      id,
+      createdAt: new Date().toISOString(),
+      quote: normalizeQuote(payload),
+      openEvents: [],
+    };
+  }
+
+  function readQuoteTracking() {
+    try {
+      const stored = storageGet(QUOTE_TRACKING_KEY);
+      const records = stored ? JSON.parse(stored) : [];
+      return Array.isArray(records) ? mergeQuoteTrackingRecords(records) : [];
+    } catch (error) {
+      console.warn("Could not parse quote tracking", error);
+      return [];
+    }
+  }
+
+  function writeQuoteTracking(records) {
+    storageSet(QUOTE_TRACKING_KEY, JSON.stringify(mergeQuoteTrackingRecords(records)));
+  }
+
+  function saveQuoteTrackingRecord(record) {
+    writeQuoteTracking(mergeQuoteTrackingRecords([record], readQuoteTracking()));
+  }
+
+  function appendQuoteTrackingOpen(id, openedAt) {
+    const records = readQuoteTracking();
+    const index = records.findIndex((record) => record.id === id);
+    if (index < 0) return;
+
+    const record = normalizeQuoteTrackingRecord(records[index]);
+    record.openEvents.push({ openedAt });
+    records[index] = record;
+    writeQuoteTracking(records);
+  }
+
+  function mergeQuoteTrackingRecords(...recordLists) {
+    const byId = new Map();
+    recordLists.flat().forEach((record) => {
+      const normalized = normalizeQuoteTrackingRecord(record);
+      if (!normalized.id) return;
+      const existing = byId.get(normalized.id);
+      byId.set(normalized.id, existing ? mergeQuoteTrackingRecord(existing, normalized) : normalized);
+    });
+    return Array.from(byId.values()).sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")));
+  }
+
+  function mergeQuoteTrackingRecord(a, b) {
+    const openEvents = mergeQuoteOpenEvents(a.openEvents, b.openEvents);
+    return {
+      ...a,
+      ...b,
+      quote: { ...(a.quote || {}), ...(b.quote || {}) },
+      createdAt: a.createdAt || b.createdAt,
+      openEvents,
+    };
+  }
+
+  function normalizeQuoteTrackingRecord(record) {
+    const quote = record?.quote && typeof record.quote === "object" ? record.quote : record || {};
+    const openEvents = Array.isArray(record?.openEvents)
+      ? record.openEvents
+      : Array.isArray(record?.openedAt)
+        ? record.openedAt.map((openedAt) => ({ openedAt }))
+        : [];
+    return {
+      id: record?.id || "",
+      createdAt: record?.createdAt || record?.created_at || "",
+      quote,
+      openEvents: mergeQuoteOpenEvents(openEvents),
+    };
+  }
+
+  function mergeQuoteOpenEvents(...eventLists) {
+    const seen = new Set();
+    return eventLists
+      .flat()
+      .map((event) => ({ openedAt: typeof event === "string" ? event : event?.openedAt }))
+      .filter((event) => {
+        if (!event.openedAt || seen.has(event.openedAt)) return false;
+        seen.add(event.openedAt);
+        return true;
+      })
+      .sort((a, b) => String(a.openedAt).localeCompare(String(b.openedAt)));
   }
 
   function shouldUseLocalServer() {
@@ -2481,7 +2695,7 @@
   }
 
   function renderQuote(data) {
-    const q = normalizeQuote(data);
+    const q = normalizeQuote(data, { syncDefaultTexts: false });
     const sections = buildSectionIndex(q);
     const pages = [renderCoverPage(q, sections)];
 
