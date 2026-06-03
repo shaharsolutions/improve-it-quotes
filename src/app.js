@@ -516,7 +516,7 @@
     const hasManualPricingItems = Boolean(raw?.pricingItemsEdited && Array.isArray(raw?.pricingItems));
     const shouldMigrateLegacyCourseCount = isLegacyDefaultCourseCount(raw);
     let merged = { ...sampleQuote, ...(raw || {}) };
-    merged = replaceDefaultCompanyReferences(merged, merged.clientCompany);
+    merged = applyDefaultCompanyReferences(merged, raw || {});
     if (subjectMatchesDefaultCompany(merged.subject, DEFAULT_CLIENT_COMPANY) && merged.clientCompany !== DEFAULT_CLIENT_COMPANY) {
       merged.subject = buildDefaultSubject(merged.clientCompany);
     }
@@ -1126,6 +1126,10 @@
       }
     }
 
+    if (field.name === "clientCompany") {
+      syncDefaultSectionTextsForCompanyChange(previousCompany);
+    }
+
     if (field.name === "quoteDate") {
       quote.discountValidUntil = monthEndIsoDate(quote.quoteDate);
       if (form.elements.discountValidUntil) {
@@ -1166,21 +1170,58 @@
     const replacement = normalizeSubjectCompany(company);
     if (replacement === DEFAULT_CLIENT_COMPANY) return value;
 
-    if (typeof value === "string") {
-      return value.split(DEFAULT_CLIENT_COMPANY).join(replacement);
-    }
+    return String(value || "").split(DEFAULT_CLIENT_COMPANY).join(replacement);
+  }
 
-    if (Array.isArray(value)) {
-      return value.map((item) => replaceDefaultCompanyReferences(item, replacement));
-    }
+  function applyDefaultCompanyReferences(merged, raw) {
+    const fields = ["backgroundText", "solutionText"];
+    fields.forEach((field) => {
+      if (shouldUseCompanySpecificDefaultText(raw, field) || hasLikelyCorruptedCompanyReplacement(raw[field], raw.clientCompany, field)) {
+        merged[field] = replaceDefaultCompanyReferences(sampleQuote[field], merged.clientCompany);
+      }
+    });
+    return merged;
+  }
 
-    if (value && typeof value === "object") {
-      return Object.fromEntries(
-        Object.entries(value).map(([key, item]) => [key, replaceDefaultCompanyReferences(item, replacement)])
-      );
-    }
+  function syncDefaultSectionTextsForCompanyChange(previousCompany) {
+    ["backgroundText", "solutionText"].forEach((field) => {
+      if (shouldSyncDefaultSectionText(quote[field], previousCompany, field)) {
+        quote[field] = replaceDefaultCompanyReferences(sampleQuote[field], quote.clientCompany);
+      }
+    });
+  }
 
-    return value;
+  function shouldSyncDefaultSectionText(value, previousCompany, field) {
+    const text = String(value || "").trim();
+    if (!text) return true;
+    return (
+      text === sampleQuote[field] ||
+      text === replaceDefaultCompanyReferences(sampleQuote[field], previousCompany) ||
+      hasLikelyCorruptedCompanyReplacement(text, previousCompany, field) ||
+      hasLikelyCorruptedCompanyReplacement(text, quote.clientCompany, field)
+    );
+  }
+
+  function shouldUseCompanySpecificDefaultText(raw, field) {
+    if (!Object.prototype.hasOwnProperty.call(raw || {}, field)) return true;
+    const value = String(raw[field] || "").trim();
+    if (!value) return true;
+    return value === sampleQuote[field] || value === replaceDefaultCompanyReferences(sampleQuote[field], raw.clientCompany);
+  }
+
+  function hasLikelyCorruptedCompanyReplacement(value, company, field) {
+    const text = String(value || "");
+    const replacement = normalizeSubjectCompany(company);
+    if (!text || replacement === DEFAULT_CLIENT_COMPANY) return false;
+
+    const actualCount = countOccurrences(text, replacement);
+    const expectedCount = countOccurrences(sampleQuote[field], DEFAULT_CLIENT_COMPANY);
+    return actualCount > expectedCount + 2;
+  }
+
+  function countOccurrences(text, search) {
+    if (!search) return 0;
+    return String(text || "").split(search).length - 1;
   }
 
   function subjectMatchesDefaultCompany(subject, company) {
