@@ -259,6 +259,7 @@
   const authRememberField = document.getElementById("authRemember");
   const authError = document.getElementById("authError");
   const form = document.getElementById("quoteForm");
+  const saveDataButton = document.getElementById("saveData");
   const preview = document.getElementById("proposalPreview");
   const pricingItems = document.getElementById("pricingItems");
   const courseNamesList = document.getElementById("courseNamesList");
@@ -297,6 +298,7 @@
   let signatureLastPoint = null;
   let signatureResizeTimer = null;
   let activeSectionEditorKey = "";
+  let activeSharedQuoteId = "";
 
   start();
 
@@ -421,6 +423,7 @@
     });
 
     document.getElementById("resetSample").addEventListener("click", () => {
+      setActiveSharedQuoteId("");
       quote = normalizeQuote(sampleQuote);
       applySalespersonSettingsToQuote();
       applyClientLogoSettingsToQuote();
@@ -432,9 +435,7 @@
       renderPreview();
     });
 
-    document.getElementById("saveData").addEventListener("click", () => {
-      storageSet(STORAGE_KEY, JSON.stringify(quote));
-    });
+    saveDataButton.addEventListener("click", saveCurrentQuote);
 
     document.getElementById("createClientLink").addEventListener("click", showClientLink);
     copyClientLinkButton.addEventListener("click", copyClientLink);
@@ -446,6 +447,7 @@
     signedArchiveList.addEventListener("click", handleSignedArchiveClick);
     document.getElementById("showQuoteTracking").addEventListener("click", showQuoteTracking);
     quoteTrackingSearchField.addEventListener("input", renderQuoteTracking);
+    quoteTrackingList.addEventListener("click", handleQuoteTrackingClick);
     document.getElementById("closeQuoteTracking").addEventListener("click", () => {
       quoteTrackingPanel.hidden = true;
     });
@@ -682,6 +684,37 @@
   function handleTopbarActionClick(event) {
     if (!event.target.closest("button, .action-button")) return;
     scrollPageToTop();
+  }
+
+  async function saveCurrentQuote() {
+    storageSet(STORAGE_KEY, JSON.stringify(quote));
+
+    if (!activeSharedQuoteId) return;
+
+    saveDataButton.disabled = true;
+    saveDataButton.textContent = "שומר קישור...";
+
+    try {
+      const payload = buildShareQuotePayload();
+      const saved = await updateSharedQuote(activeSharedQuoteId, payload);
+      if (!saved) throw new Error("Shared quote update failed");
+      await showAppAlert("הקישור עודכן", "ההצעה המקושרת לקישור נשמרה בהצלחה.");
+    } catch (error) {
+      console.error("Could not update shared quote", error);
+      await showAppAlert("לא ניתן לשמור קישור", "לא הצלחנו לעדכן את ההצעה המקושרת. נסו שוב בעוד רגע.");
+    } finally {
+      saveDataButton.disabled = false;
+      updateActiveSharedQuoteUi();
+    }
+  }
+
+  function setActiveSharedQuoteId(id) {
+    activeSharedQuoteId = id || "";
+    updateActiveSharedQuoteUi();
+  }
+
+  function updateActiveSharedQuoteUi() {
+    saveDataButton.textContent = activeSharedQuoteId ? "שמירת קישור" : "שמירה";
   }
 
   function logoutGenerator() {
@@ -1681,11 +1714,17 @@
     const payload = buildShareQuotePayload();
     const shareId = await saveSharedQuote(payload);
     if (shareId) {
-      return `${getShareBaseUrl()}#mode=client&id=${encodeURIComponent(shareId)}`;
+      setActiveSharedQuoteId(shareId);
+      return buildSharedQuoteLink(shareId);
     }
 
     const encoded = await compressQuotePayload(JSON.stringify(payload));
+    setActiveSharedQuoteId("");
     return `${getShareBaseUrl()}#mode=client&z=${encoded}`;
+  }
+
+  function buildSharedQuoteLink(id) {
+    return `${getShareBaseUrl()}#mode=client&id=${encodeURIComponent(id)}`;
   }
 
   function buildShareQuotePayload() {
@@ -2229,6 +2268,22 @@
     return savedToLocalServer || savedToSupabase ? id : "";
   }
 
+  async function updateSharedQuote(id, payload) {
+    if (!id) return false;
+
+    const updatedRecord = buildQuoteTrackingRecord(id, payload);
+    const existingRecord = readQuoteTracking().find((record) => record.id === id);
+    if (existingRecord) {
+      updatedRecord.createdAt = existingRecord.createdAt || updatedRecord.createdAt;
+      updatedRecord.openEvents = existingRecord.openEvents || [];
+    }
+
+    saveQuoteTrackingRecord(updatedRecord);
+    const savedToLocalServer = await saveSharedQuoteToLocalServer(id, payload, updatedRecord.createdAt);
+    const savedToSupabase = await saveSharedQuoteToSupabase(id, payload);
+    return savedToLocalServer || savedToSupabase;
+  }
+
   async function readSharedQuote(id) {
     return (await readSharedQuoteFromSupabase(id)) || (await readSharedQuoteFromLocalServer(id));
   }
@@ -2267,14 +2322,14 @@
     }
   }
 
-  async function saveSharedQuoteToLocalServer(id, payload) {
+  async function saveSharedQuoteToLocalServer(id, payload, createdAt = new Date().toISOString()) {
     if (!shouldUseLocalServer()) return false;
 
     try {
       const response = await fetch(LOCAL_SHARED_QUOTE_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, quote: payload, createdAt: new Date().toISOString() }),
+        body: JSON.stringify({ id, quote: payload, createdAt }),
       });
       if (!response.ok) throw new Error(`Local shared quote save failed: ${response.status}`);
       return true;
@@ -2295,6 +2350,32 @@
     } catch (error) {
       console.warn("Could not load shared quote from local server", error);
       return null;
+    }
+  }
+
+  async function deleteSharedQuoteFromSupabase(id) {
+    if (!supabaseClient || !id) return false;
+
+    try {
+      const { error } = await supabaseClient.from("shared_quotes").delete().eq("id", id);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn("Could not delete shared quote from Supabase", error);
+      return false;
+    }
+  }
+
+  async function deleteSharedQuoteFromLocalServer(id) {
+    if (!shouldUseLocalServer() || !id) return false;
+
+    try {
+      const response = await fetch(`${LOCAL_SHARED_QUOTE_URL}?id=${encodeURIComponent(id)}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`Local shared quote delete failed: ${response.status}`);
+      return true;
+    } catch (error) {
+      console.warn("Could not delete shared quote from local server", error);
+      return false;
     }
   }
 
@@ -2361,8 +2442,78 @@
           <div class="quote-tracking-subject">${escapeHtml(quote.subject || "")}</div>
           ${openTimes}
         </div>
+        <div class="signed-archive-actions">
+          <button type="button" class="compact" data-copy-tracking-id="${escapeAttr(record.id)}">העתקת קישור</button>
+          <button type="button" class="compact" data-edit-tracking-id="${escapeAttr(record.id)}">עריכה</button>
+          <button type="button" class="compact danger" data-delete-tracking-id="${escapeAttr(record.id)}">מחיקה</button>
+        </div>
       </div>
     `;
+  }
+
+  async function handleQuoteTrackingClick(event) {
+    const copyButton = event.target.closest("[data-copy-tracking-id]");
+    if (copyButton) {
+      await copyTrackingLink(copyButton.dataset.copyTrackingId, copyButton);
+      return;
+    }
+
+    const editButton = event.target.closest("[data-edit-tracking-id]");
+    if (editButton) {
+      editTrackedQuote(editButton.dataset.editTrackingId);
+      return;
+    }
+
+    const deleteButton = event.target.closest("[data-delete-tracking-id]");
+    if (deleteButton) {
+      await deleteTrackedQuote(deleteButton.dataset.deleteTrackingId);
+    }
+  }
+
+  async function copyTrackingLink(id, button) {
+    const copied = await copyText(buildSharedQuoteLink(id));
+    const originalText = button.textContent;
+    button.textContent = copied ? "הועתק" : "לא הועתק";
+    window.setTimeout(() => {
+      button.textContent = originalText;
+    }, 1600);
+  }
+
+  function editTrackedQuote(id) {
+    const record = readQuoteTracking().find((item) => item.id === id);
+    if (!record?.quote) return;
+
+    setActiveSharedQuoteId(id);
+    quote = normalizeQuote(record.quote);
+    storageSet(STORAGE_KEY, JSON.stringify(quote));
+    populateForm();
+    renderCourseNameInputs();
+    renderPricingItems();
+    redrawSignaturePad();
+    renderPreview();
+    clientLinkOutput.value = buildSharedQuoteLink(id);
+    sharePanel.hidden = false;
+    quoteTrackingPanel.hidden = true;
+    signedArchivePanel.hidden = true;
+    settingsPanel.hidden = true;
+    setCopyFeedback("עורכים קישור קיים");
+  }
+
+  async function deleteTrackedQuote(id) {
+    const record = readQuoteTracking().find((item) => item.id === id);
+    const quoteName = record?.quote?.clientCompany || record?.quote?.quoteNumber || "הקישור";
+    const confirmed = await showAppConfirm(
+      "מחיקת קישור מעקב",
+      `למחוק את "${quoteName}" ולבטל את הקישור ללקוח?`,
+      "מחיקה"
+    );
+    if (!confirmed) return;
+
+    writeQuoteTracking(readQuoteTracking().filter((item) => item.id !== id));
+    if (activeSharedQuoteId === id) setActiveSharedQuoteId("");
+    await deleteSharedQuoteFromSupabase(id);
+    await deleteSharedQuoteFromLocalServer(id);
+    renderQuoteTracking();
   }
 
   function quoteTrackingMatchesSearch(record, searchTerm) {
@@ -2429,7 +2580,7 @@
   }
 
   function saveQuoteTrackingRecord(record) {
-    writeQuoteTracking(mergeQuoteTrackingRecords([record], readQuoteTracking()));
+    writeQuoteTracking(mergeQuoteTrackingRecords(readQuoteTracking(), [record]));
   }
 
   function appendQuoteTrackingOpen(id, openedAt) {

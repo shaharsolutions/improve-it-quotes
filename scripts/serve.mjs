@@ -160,6 +160,21 @@ async function handleSharedQuotesRequest(request, response) {
     return;
   }
 
+  if (request.method === "DELETE") {
+    const url = new URL(request.url || "", `http://localhost:${port}`);
+    const id = url.searchParams.get("id");
+    if (!id) {
+      sendJson(response, 400, { error: "Missing shared quote id" });
+      return;
+    }
+
+    const quotes = readLocalSharedQuotes();
+    delete quotes[id];
+    writeLocalSharedQuotes(quotes);
+    sendJson(response, 200, { ok: true });
+    return;
+  }
+
   sendJson(response, 405, { error: "Method not allowed" });
 }
 
