@@ -10,7 +10,7 @@
   const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
   const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
-  const DEFAULT_DOCUMENT_TITLE = document.title;
+  const GENERATOR_DOCUMENT_TITLE = "מחולל הצעות מחיר | Improve-IT";
   const DEFAULT_CLIENT_COMPANY = "ארגון לדוגמה";
   const DEFAULT_COURSE_COUNT = 3;
   const LEGACY_DEFAULT_COURSE_COUNT = 4;
@@ -380,6 +380,7 @@
       updateClientDocumentTitle();
     }
     if (!isClientMode) {
+      document.title = GENERATOR_DOCUMENT_TITLE;
       applySalespersonSettingsToQuote();
       applyClientLogoSettingsToQuote();
     }
@@ -529,7 +530,7 @@
   }
 
   function updateClientDocumentTitle() {
-    document.title = isClientMode ? buildClientDocumentTitle(quote) : DEFAULT_DOCUMENT_TITLE;
+    document.title = isClientMode ? buildClientDocumentTitle(quote) : GENERATOR_DOCUMENT_TITLE;
   }
 
   function buildClientDocumentTitle(sourceQuote) {
