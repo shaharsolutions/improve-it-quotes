@@ -12,6 +12,8 @@
   const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
   const GENERATOR_DOCUMENT_TITLE = "מחולל הצעות מחיר | Improve-IT";
   const DEFAULT_CLIENT_COMPANY = "ארגון לדוגמה";
+  const SUBJECT_PLACEHOLDER = "{subject}";
+  const DEFAULT_SUBJECT_LINE_TEMPLATE = `הנדון: ${SUBJECT_PLACEHOLDER}`;
   const DEFAULT_COURSE_COUNT = 3;
   const LEGACY_DEFAULT_COURSE_COUNT = 4;
   const DEFAULT_SUBJECT_PREFIX = "הצעת מחיר עבור שימוש במערכת LMS ובלומדות מדף עבור ";
@@ -84,6 +86,7 @@
         showPricing: true,
         showTerms: true,
         showCancellation: true,
+        subjectLabel: DEFAULT_SUBJECT_LINE_TEMPLATE,
         pricingPlanLabel: "השכרה - מסלול שנתי",
       },
       sectionDefinitions: [
@@ -110,6 +113,7 @@
         showPricing: true,
         showTerms: true,
         showCancellation: false,
+        subjectLabel: DEFAULT_SUBJECT_LINE_TEMPLATE,
         pricingPlanLabel: "תמחור מסחרי",
       },
       sectionDefinitions: [
@@ -197,6 +201,7 @@
     contactName: "איש קשר לדוגמה",
     contactTitle: "תפקיד לדוגמה",
     subject: buildDefaultSubject(DEFAULT_CLIENT_COMPANY),
+    subjectLabel: DEFAULT_SUBJECT_LINE_TEMPLATE,
     signatoryName: DEFAULT_SALESPERSON_SETTINGS.advisors[0].name,
     signatoryTitle: DEFAULT_SALESPERSON_SETTINGS.advisors[0].title,
     clientSignerName: "",
@@ -571,6 +576,7 @@
     if (subjectMatchesDefaultCompany(merged.subject, DEFAULT_CLIENT_COMPANY) && merged.clientCompany !== DEFAULT_CLIENT_COMPANY) {
       merged.subject = buildDefaultSubject(merged.clientCompany);
     }
+    merged.subjectLabel = normalizeSubjectLineTemplate(merged.subjectLabel);
     merged.templateId = TEMPLATE_DEFINITIONS[merged.templateId] ? merged.templateId : getFallbackTemplateId();
     merged.quoteDate = parseIsoDate(merged.quoteDate) ? merged.quoteDate : todayIsoDate();
     merged.validDays = numberOr(merged.validDays, sampleQuote.validDays);
@@ -950,6 +956,10 @@
               <textarea data-template-field="description" rows="2">${escapeHtml(template.description || "")}</textarea>
             </label>
             <label>
+              כותרת הנדון ברירת מחדל
+              <input data-template-default-text="subjectLabel" type="text" value="${escapeAttr(subjectLineSettingsDisplayValue(template.defaults?.subjectLabel))}" />
+            </label>
+            <label>
               תיאור מסלול ברירת מחדל
               <input data-template-default-text="pricingPlanLabel" type="text" value="${escapeAttr(template.defaults?.pricingPlanLabel || "")}" />
             </label>
@@ -1071,7 +1081,8 @@
     template.defaults = { ...(template.defaults || {}) };
 
     card.querySelectorAll("[data-template-default-text]").forEach((field) => {
-      template.defaults[field.dataset.templateDefaultText] = field.value;
+      const key = field.dataset.templateDefaultText;
+      template.defaults[key] = key === "subjectLabel" ? subjectLineTemplateFromSettingsValue(field.value) : field.value;
     });
     card.querySelectorAll("[data-template-default-flag]").forEach((field) => {
       template.defaults[field.dataset.templateDefaultFlag] = field.checked;
@@ -1243,6 +1254,37 @@
 
   function buildDefaultSubject(company) {
     return `${DEFAULT_SUBJECT_PREFIX}${normalizeSubjectCompany(company)}`;
+  }
+
+  function normalizeSubjectLineTemplate(value) {
+    const text = String(value || "").trim();
+    if (!text || text === "הנדון") return DEFAULT_SUBJECT_LINE_TEMPLATE;
+    return text;
+  }
+
+  function subjectLineSettingsDisplayValue(value) {
+    return renderSubjectLine({
+      subject: sampleQuote.subject,
+      subjectLabel: normalizeSubjectLineTemplate(value),
+    });
+  }
+
+  function subjectLineTemplateFromSettingsValue(value) {
+    const text = String(value || "").trim();
+    if (!text || text === "הנדון") return DEFAULT_SUBJECT_LINE_TEMPLATE;
+
+    const defaultSubject = sampleQuote.subject;
+    return text.includes(defaultSubject) ? text.replace(defaultSubject, SUBJECT_PLACEHOLDER) : text;
+  }
+
+  function renderSubjectLine(sourceQuote) {
+    const subject = String(sourceQuote?.subject || "").trim();
+    const template = normalizeSubjectLineTemplate(sourceQuote?.subjectLabel);
+    const rendered = template.includes(SUBJECT_PLACEHOLDER)
+      ? template.replaceAll(SUBJECT_PLACEHOLDER, subject)
+      : template;
+
+    return rendered || subject;
   }
 
   function normalizeSubjectCompany(company) {
@@ -3152,7 +3194,7 @@
       <p class="date-line">${formatDate(q.quoteDate)}</p>
       <p class="recipient">לכבוד<br />${escapeHtml(q.contactName)}${contactTitle}<br />${escapeHtml(q.clientCompany)}</p>
       <p>${escapeHtml(greetingName)} שלום רב,</p>
-      <div class="subject">הנדון: ${escapeHtml(q.subject)}</div>
+      <div class="subject">${escapeHtml(renderSubjectLine(q))}</div>
       <p>תודה על פנייתך לקבלת הצעת מחיר ל${escapeHtml(serviceDescription)} עבור ${escapeHtml(q.clientCompany)}, להלן הצעתנו:</p>
       <p>המסמך שלהלן כולל את:</p>
       <table class="toc"><tbody>${toc}</tbody></table>
