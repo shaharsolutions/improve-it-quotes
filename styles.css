@@ -1798,6 +1798,7 @@ select:focus {
 
   .client-mode .editor-panel {
     order: 1;
+    width: 100%;
     border-left: 0;
     border-top: 1px solid var(--line);
     border-bottom: 0;
@@ -1837,9 +1838,11 @@ select:focus {
   }
 
   .client-mode .client-signature-submit {
-    bottom: max(10px, env(safe-area-inset-bottom));
+    position: static;
+    bottom: auto;
     min-height: 52px;
     margin-top: 16px;
+    box-shadow: none;
   }
 
   .floating-signature-jump {
