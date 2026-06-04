@@ -392,6 +392,7 @@
     renderCourseNameInputs();
     renderPricingItems();
     setupSignaturePad();
+    setupFloatingSignatureJump();
     renderPreview();
 
     form.addEventListener("input", handleFormInput);
@@ -475,6 +476,7 @@
     document.getElementById("closeSignedArchive").addEventListener("click", () => {
       signedArchivePanel.hidden = true;
     });
+    document.getElementById("jumpToSignature").addEventListener("click", scrollToClientSignature);
     document.getElementById("sendSignedQuote").addEventListener("click", sendSignedQuote);
     document.getElementById("printQuote").addEventListener("click", showPrintPdfChoice);
     clearSignatureButton.addEventListener("click", clearSignature);
@@ -2857,6 +2859,38 @@
     quote.clientSignatureData = "";
     redrawSignaturePad();
     renderPreview();
+  }
+
+  function scrollToClientSignature() {
+    const signatureSection = document.getElementById("clientSignatureSection");
+    if (!signatureSection) return;
+    signatureSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function setupFloatingSignatureJump() {
+    const jumpButton = document.getElementById("jumpToSignature");
+    const signatureContainer = document.querySelector(".editor-panel");
+    if (!jumpButton || !signatureContainer) return;
+
+    const setJumpVisibility = (isSignatureVisible) => {
+      jumpButton.classList.toggle("is-hidden", isSignatureVisible);
+      jumpButton.setAttribute("aria-hidden", isSignatureVisible ? "true" : "false");
+      jumpButton.tabIndex = isSignatureVisible ? -1 : 0;
+    };
+
+    if (!("IntersectionObserver" in window)) {
+      setJumpVisibility(false);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setJumpVisibility(entry.isIntersecting);
+      },
+      { threshold: 0.01 }
+    );
+
+    observer.observe(signatureContainer);
   }
 
   function renderPreview() {

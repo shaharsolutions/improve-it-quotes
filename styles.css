@@ -566,7 +566,7 @@ button.danger:hover {
 }
 
 .client-mode .workspace {
-  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .client-mode .editor-section:not(.client-signature-section) {
@@ -574,7 +574,40 @@ button.danger:hover {
 }
 
 .client-mode .editor-panel {
+  order: 1;
+  max-height: none;
+  overflow: visible;
+  border-left: 0;
+  border-top: 1px solid var(--line);
   background: #ffffff;
+}
+
+.client-mode .preview-panel {
+  order: 0;
+  max-height: none;
+  overflow: visible;
+}
+
+.client-mode .client-signature-section {
+  scroll-margin-top: 18px;
+}
+
+.floating-signature-jump {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 20;
+  min-height: 46px;
+  padding: 0 18px;
+  box-shadow: 0 14px 32px rgba(18, 138, 160, 0.26);
+  transition: opacity 160ms ease, visibility 160ms ease, transform 160ms ease;
+}
+
+.floating-signature-jump.is-hidden {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(8px);
 }
 
 .workspace {
@@ -1696,13 +1729,14 @@ select:focus {
   }
 
   .client-mode .editor-panel {
-    order: 0;
+    order: 1;
     border-left: 0;
-    border-bottom: 1px solid var(--line);
+    border-top: 1px solid var(--line);
+    border-bottom: 0;
   }
 
   .client-mode .preview-panel {
-    order: 1;
+    order: 0;
     overflow: visible;
     padding: 10px 8px 28px;
   }
@@ -1738,6 +1772,13 @@ select:focus {
     bottom: max(10px, env(safe-area-inset-bottom));
     min-height: 52px;
     margin-top: 16px;
+  }
+
+  .floating-signature-jump {
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    min-height: 44px;
+    padding: 0 14px;
   }
 
   .proposal-preview {
@@ -1929,7 +1970,8 @@ select:focus {
 
   .app-topbar,
   .app-dialog,
-  .editor-panel {
+  .editor-panel,
+  .floating-signature-jump {
     display: none;
   }
 
