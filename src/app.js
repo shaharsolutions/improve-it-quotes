@@ -10,6 +10,7 @@
   const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
   const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
+  const DEFAULT_DOCUMENT_TITLE = document.title;
   const DEFAULT_CLIENT_COMPANY = "ארגון לדוגמה";
   const DEFAULT_COURSE_COUNT = 3;
   const LEGACY_DEFAULT_COURSE_COUNT = 4;
@@ -376,6 +377,7 @@
     quote = normalizeQuote(await readInitialQuote());
     if (isClientMode) {
       updateClientSignatureDateToToday();
+      updateClientDocumentTitle();
     }
     if (!isClientMode) {
       applySalespersonSettingsToQuote();
@@ -524,6 +526,22 @@
 
   function getHashParam(name) {
     return new URLSearchParams(window.location.hash.replace(/^#/, "")).get(name);
+  }
+
+  function updateClientDocumentTitle() {
+    document.title = isClientMode ? buildClientDocumentTitle(quote) : DEFAULT_DOCUMENT_TITLE;
+  }
+
+  function buildClientDocumentTitle(sourceQuote) {
+    const subject = String(sourceQuote?.subject || "").trim();
+    const clientCompany = String(sourceQuote?.clientCompany || "").trim();
+    let title = subject || (clientCompany ? `הצעת מחיר עבור ${clientCompany}` : "הצעת מחיר");
+
+    if (clientCompany && !title.includes(clientCompany)) {
+      title = `${title} - ${clientCompany}`;
+    }
+
+    return `${title} | Improve-IT`;
   }
 
   function normalizeQuote(raw, options = {}) {
