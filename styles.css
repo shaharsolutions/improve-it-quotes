@@ -553,7 +553,7 @@ button.danger:hover {
 .client-signature-submit {
   width: 100%;
   min-height: 42px;
-  margin-top: -4px;
+  margin-top: 14px;
 }
 
 .client-mode .client-signature-submit {
@@ -1699,7 +1699,7 @@ select:focus {
   }
 
   .client-mode .client-signature-section {
-    margin-bottom: 0;
+    margin-bottom: 12px;
     padding-bottom: 0;
     border-bottom: 0;
   }
@@ -1728,6 +1728,7 @@ select:focus {
   .client-mode .client-signature-submit {
     bottom: max(10px, env(safe-area-inset-bottom));
     min-height: 52px;
+    margin-top: 16px;
   }
 
   .proposal-preview {
