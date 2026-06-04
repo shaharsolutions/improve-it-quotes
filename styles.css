@@ -26,6 +26,7 @@ html,
 body {
   min-height: 100%;
   overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 body {
@@ -698,6 +699,14 @@ select {
   padding: 9px 10px;
   resize: vertical;
   outline: none;
+}
+
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
 }
 
 input:focus,
