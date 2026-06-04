@@ -40,10 +40,22 @@ if (result.status !== 0) {
   process.exit(result.status || 1);
 }
 
-const linkResult = spawnSync("python3", [resolve(root, "scripts/fix-pdf-links.py"), output], { stdio: "inherit" });
+const linkResult = spawnSync("python3", [resolve(root, "scripts/fix-pdf-links.py"), output], {
+  encoding: "utf8",
+});
+
+if (linkResult.stdout) process.stdout.write(linkResult.stdout);
+if (linkResult.stderr) process.stderr.write(linkResult.stderr);
 
 if (linkResult.error) {
   throw linkResult.error;
+}
+
+const convertedLinks = Number((linkResult.stdout || "").match(/converted_links=(\d+)/)?.[1] || 0);
+
+if (linkResult.status === 0 && convertedLinks === 0) {
+  console.error("PDF rendering did not produce active table-of-contents links.");
+  process.exit(1);
 }
 
 process.exit(linkResult.status || 0);
