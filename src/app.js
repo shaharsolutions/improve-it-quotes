@@ -292,6 +292,9 @@
   const appDialogConfirm = document.getElementById("appDialogConfirm");
   const appDialogCancel = document.getElementById("appDialogCancel");
   const appDialogExtra = document.getElementById("appDialogExtra");
+  const priceListDialog = document.getElementById("priceListDialog");
+  const priceListContent = document.getElementById("priceListContent");
+  const closePriceListButton = document.getElementById("closePriceList");
   const signatureCanvas = document.getElementById("clientSignaturePad");
   const clearSignatureButton = document.getElementById("clearSignature");
   let signatureContext = null;
@@ -426,6 +429,15 @@
       renderPreview();
     });
 
+    document.getElementById("showPriceList").addEventListener("click", showPriceList);
+    closePriceListButton.addEventListener("click", closePriceList);
+    priceListDialog.addEventListener("click", (event) => {
+      if (event.target === priceListDialog) closePriceList();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !priceListDialog.hidden) closePriceList();
+    });
+
     document.getElementById("resetSample").addEventListener("click", () => {
       setActiveSharedQuoteId("");
       quote = normalizeQuote(sampleQuote);
@@ -492,6 +504,7 @@
     if (sharedQuoteId) {
       const sharedQuote = await readSharedQuote(sharedQuoteId);
       if (sharedQuote) {
+        setActiveSharedQuoteId(sharedQuoteId);
         if (isClientMode) recordSharedQuoteOpen(sharedQuoteId);
         return sharedQuote;
       }
@@ -1711,6 +1724,78 @@
     quote.discountPercent = quote.includeLms && quote.courseCount >= 4 ? 5 : 0;
   }
 
+  function showPriceList() {
+    priceListContent.innerHTML = renderPriceList();
+    priceListDialog.hidden = false;
+    closePriceListButton.focus();
+  }
+
+  function closePriceList() {
+    priceListDialog.hidden = true;
+  }
+
+  function renderPriceList() {
+    return `
+      ${renderPriceListSection(
+        "השכרת LMS עם לומדה אחת",
+        ["מספר עובדים", "עלות שנתית"],
+        LMS_SINGLE_COURSE_TIERS.map((tier) => [formatUsersTier(tier), formatCurrency(tier.price)])
+      )}
+      ${renderPriceListSection(
+        "השכרת LMS עם חבילת 3 לומדות",
+        ["מספר עובדים", "עלות שנתית"],
+        LMS_THREE_COURSE_PACKAGE_TIERS.map((tier) => [formatUsersTier(tier), formatCurrency(tier.price)])
+      )}
+      ${renderPriceListSection("לומדות מדף - רכישה", ["תכולה", "עלות"], [
+        ["לומדה אחת מקבוצה A", formatCurrency(SHELF_COURSE_GROUP_A_PACKAGE_PRICES[1])],
+        ["2 לומדות מדף מקבוצה A", formatCurrency(SHELF_COURSE_GROUP_A_PACKAGE_PRICES[2])],
+        ["3 לומדות מדף מקבוצה A", formatCurrency(SHELF_COURSE_GROUP_A_PACKAGE_PRICES[3])],
+        ["כל לומדה נוספת", formatCurrency(2500)],
+      ])}
+      ${renderPriceListSection("תוספות", ["תוספת", "עלות"], [
+        ["לומדה נוספת במערכת LMS עד 500 עובדים", formatCurrency(1200)],
+        ["לומדה נוספת במערכת LMS עד 700 עובדים", formatCurrency(1900)],
+        ["לומדה נוספת במערכת LMS עד 850 עובדים", formatCurrency(2200)],
+        ["לומדה נוספת במערכת LMS מעל 850 עובדים", formatCurrency(2900)],
+        ["תרגום ללומדה במסלול LMS", formatCurrency(750)],
+        ["תרגום ללומדה ברכישה", formatCurrency(950)],
+        ["קריינות בעברית ללומדה אחת במסלול LMS", formatCurrency(450)],
+        ["קריינות בעברית ללומדה אחת ברכישה", formatCurrency(350)],
+        ["קריינות בשפה נוספת", formatCurrency(950)],
+        ["עובד נוסף במסלול פעיל", formatCurrency(numberOr(quote.additionalUserPrice, sampleQuote.additionalUserPrice))],
+      ])}
+      <p class="price-list-note">המחירון משקף את מדרגות התמחור המשמשות את המחולל בפועל. המחירים אינם כוללים מע"מ.</p>
+    `;
+  }
+
+  function renderPriceListSection(title, headers, rows) {
+    return `
+      <section class="price-list-section">
+        <h3>${escapeHtml(title)}</h3>
+        <table class="price-list-table">
+          <thead>
+            <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
+          </thead>
+          <tbody>
+            ${rows
+              .map(
+                (row) => `
+                  <tr>
+                    ${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}
+                  </tr>
+                `
+              )
+              .join("")}
+          </tbody>
+        </table>
+      </section>
+    `;
+  }
+
+  function formatUsersTier(tier) {
+    return `עד ${formatNumber(tier.maxUsers)} עובדים`;
+  }
+
   async function showClientLink() {
     const createButton = document.getElementById("createClientLink");
     createButton.disabled = true;
@@ -1922,14 +2007,18 @@
     try {
       const archive = readSignedArchive();
       const signedRecord = {
-        id: `${quote.quoteNumber || "quote"}-${Date.now()}`,
+        id: buildSignedQuoteRecordId(),
+        sharedQuoteId: activeSharedQuoteId || getHashParam("id") || "",
         signedAt: new Date().toISOString(),
         quote: normalizeQuote(quote),
       };
-      archive.unshift(signedRecord);
-      storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
-      await saveSignedQuoteToSupabase(signedRecord);
-      await saveSignedQuoteToLocalServer(signedRecord);
+      writeSignedArchive([signedRecord, ...archive]);
+      const savedToSupabase = await saveSignedQuoteToSupabase(signedRecord);
+      const savedToSharedQuote = await saveSignedQuoteToSharedQuote(signedRecord);
+      const savedToLocalServer = await saveSignedQuoteToLocalServer(signedRecord);
+      if (!savedToSupabase && !savedToSharedQuote && !savedToLocalServer) {
+        throw new Error("Signed quote was not saved to a shared archive");
+      }
       renderPreview();
       await showSignedQuoteSentDialog(signedRecord.quote);
     } catch (error) {
@@ -1939,6 +2028,13 @@
       sendButton.disabled = false;
       sendButton.textContent = "מאשר/ת את ההצעה ושולח/ת חתימה";
     }
+  }
+
+  function buildSignedQuoteRecordId() {
+    const sharedQuoteId = activeSharedQuoteId || getHashParam("id");
+    if (sharedQuoteId) return `${sharedQuoteId}-signed-${Date.now()}`;
+
+    return `${quote.quoteNumber || "quote"}-${Date.now()}`;
   }
 
   async function showSignedQuoteSentDialog(signedQuote) {
@@ -1981,6 +2077,7 @@
 
   async function showSignedArchive() {
     await syncSignedArchiveFromSupabase();
+    await syncSignedArchiveFromSharedQuotes();
     await syncSignedArchiveFromLocalServer();
     renderSignedArchive();
     signedArchivePanel.hidden = false;
@@ -2096,6 +2193,7 @@
     archive.splice(index, 1);
     storageSet(SIGNED_ARCHIVE_KEY, JSON.stringify(archive));
     await deleteSignedQuoteFromSupabase(record.id);
+    await deleteSignedQuoteFromSharedQuote(record);
     await deleteSignedQuoteFromLocalServer(record.id);
     renderSignedArchive();
   }
@@ -2214,6 +2312,49 @@
     }
   }
 
+  async function syncSignedArchiveFromSharedQuotes() {
+    if (!supabaseClient) return;
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("shared_quotes")
+        .select("id,created_at,quote")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+
+      const archive = (data || [])
+        .map(extractSignedArchiveRecordFromSharedQuote)
+        .filter(Boolean);
+      writeSignedArchive(mergeSignedArchiveRecords(archive, readSignedArchive()));
+    } catch (error) {
+      console.warn("Could not load signed quotes from shared links", error);
+    }
+  }
+
+  function extractSignedArchiveRecordFromSharedQuote(record) {
+    const sharedQuote = record?.quote;
+    if (!sharedQuote || typeof sharedQuote !== "object") return null;
+
+    const embeddedRecord = sharedQuote.signedArchiveRecord || sharedQuote.signedRecord;
+    if (embeddedRecord?.quote) {
+      return {
+        id: embeddedRecord.id || `${record.id}-signed`,
+        sharedQuoteId: embeddedRecord.sharedQuoteId || record.id,
+        signedAt: embeddedRecord.signedAt || embeddedRecord.signed_at || record.created_at || "",
+        quote: embeddedRecord.quote,
+      };
+    }
+
+    if (!sharedQuote.clientSignatureData) return null;
+
+    return {
+      id: `${record.id}-signed`,
+      sharedQuoteId: record.id,
+      signedAt: sharedQuote.clientSignatureDate || record.created_at || "",
+      quote: sharedQuote,
+    };
+  }
+
   async function syncSignedArchiveFromLocalServer() {
     if (!shouldUseLocalServer()) return;
 
@@ -2228,7 +2369,7 @@
   }
 
   async function saveSignedQuoteToSupabase(record) {
-    if (!supabaseClient) return;
+    if (!supabaseClient) return false;
 
     try {
       const { error } = await supabaseClient.from("signed_quotes").upsert({
@@ -2237,13 +2378,15 @@
         quote: record.quote,
       });
       if (error) throw error;
+      return true;
     } catch (error) {
       console.warn("Could not save signed quote to Supabase", error);
+      return false;
     }
   }
 
   async function saveSignedQuoteToLocalServer(record) {
-    if (!shouldUseLocalServer()) return;
+    if (!shouldUseLocalServer()) return false;
 
     try {
       const response = await fetch(LOCAL_SIGNED_ARCHIVE_URL, {
@@ -2252,8 +2395,58 @@
         body: JSON.stringify(record),
       });
       if (!response.ok) throw new Error(`Local signed archive save failed: ${response.status}`);
+      return true;
     } catch (error) {
       console.warn("Could not save signed quote to local server", error);
+      return false;
+    }
+  }
+
+  async function saveSignedQuoteToSharedQuote(record) {
+    const sharedQuoteId = record.sharedQuoteId || activeSharedQuoteId || getHashParam("id");
+    if (!sharedQuoteId) return false;
+
+    const sharedQuote = await readSharedQuote(sharedQuoteId);
+    if (!sharedQuote) return false;
+
+    const signedQuote = normalizeQuote(record.quote);
+    const signedPayload = {
+      ...sharedQuote,
+      ...signedQuote,
+      signedArchiveRecord: {
+        id: record.id,
+        sharedQuoteId,
+        signedAt: record.signedAt,
+        quote: signedQuote,
+      },
+    };
+
+    const savedToSupabase = await updateSharedQuotePayloadInSupabase(sharedQuoteId, signedPayload);
+    const savedToLocalServer = await saveSharedQuoteToLocalServer(sharedQuoteId, signedPayload);
+    return savedToSupabase || savedToLocalServer;
+  }
+
+  async function updateSharedQuotePayloadInSupabase(id, payload) {
+    if (!supabaseClient || !id) return false;
+
+    try {
+      const { data } = await supabaseClient
+        .from("shared_quotes")
+        .select("quote")
+        .eq("id", id)
+        .maybeSingle();
+
+      const mergedPayload = { ...payload };
+      if (data?.quote?.openEvents) {
+        mergedPayload.openEvents = data.quote.openEvents;
+      }
+
+      const { error } = await supabaseClient.from("shared_quotes").update({ quote: mergedPayload }).eq("id", id);
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.warn("Could not update shared quote with signed record", error);
+      return false;
     }
   }
 
@@ -2278,6 +2471,27 @@
     } catch (error) {
       console.warn("Could not delete signed quote from local server", error);
     }
+  }
+
+  async function deleteSignedQuoteFromSharedQuote(record) {
+    const sharedQuoteId = record?.sharedQuoteId;
+    if (!sharedQuoteId) return false;
+
+    const sharedQuote = await readSharedQuote(sharedQuoteId);
+    if (!sharedQuote?.signedArchiveRecord && !sharedQuote?.signedRecord) return false;
+
+    const cleanedQuote = { ...sharedQuote };
+    delete cleanedQuote.signedArchiveRecord;
+    delete cleanedQuote.signedRecord;
+    delete cleanedQuote.clientSignatureData;
+    delete cleanedQuote.clientSignatureDate;
+    delete cleanedQuote.clientSignerName;
+    delete cleanedQuote.clientSignerTitle;
+    delete cleanedQuote.clientSignerCompany;
+
+    const savedToSupabase = await updateSharedQuotePayloadInSupabase(sharedQuoteId, cleanedQuote);
+    const savedToLocalServer = await saveSharedQuoteToLocalServer(sharedQuoteId, cleanedQuote);
+    return savedToSupabase || savedToLocalServer;
   }
 
   async function saveSharedQuote(payload) {
@@ -2481,7 +2695,7 @@
 
     const editButton = event.target.closest("[data-edit-tracking-id]");
     if (editButton) {
-      editTrackedQuote(editButton.dataset.editTrackingId);
+      await editTrackedQuote(editButton.dataset.editTrackingId);
       return;
     }
 
@@ -2500,12 +2714,17 @@
     }, 1600);
   }
 
-  function editTrackedQuote(id) {
+  async function editTrackedQuote(id) {
     const record = readQuoteTracking().find((item) => item.id === id);
-    if (!record?.quote) return;
+    const linkedQuote = await readSharedQuote(id);
+    const quoteToEdit = linkedQuote || record?.quote;
+    if (!quoteToEdit) {
+      await showAppAlert("לא ניתן לערוך", "לא נמצאה הצעה שמקושרת לקישור הזה.");
+      return;
+    }
 
     setActiveSharedQuoteId(id);
-    quote = normalizeQuote(record.quote);
+    quote = normalizeQuote(quoteToEdit);
     storageSet(STORAGE_KEY, JSON.stringify(quote));
     populateForm();
     renderCourseNameInputs();
@@ -2518,6 +2737,7 @@
     signedArchivePanel.hidden = true;
     settingsPanel.hidden = true;
     setCopyFeedback("עורכים קישור קיים");
+    scrollPageToTop();
   }
 
   async function deleteTrackedQuote(id) {
@@ -3575,6 +3795,10 @@
   function formatCurrency(value) {
     const amount = new Intl.NumberFormat("he-IL", { maximumFractionDigits: 0 }).format(numberOr(value, 0));
     return `${amount} ₪`;
+  }
+
+  function formatNumber(value) {
+    return new Intl.NumberFormat("he-IL", { maximumFractionDigits: 0 }).format(numberOr(value, 0));
   }
 
   function formatDate(value) {

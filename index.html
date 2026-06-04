@@ -283,6 +283,7 @@
               <div class="section-heading-row">
                 <h2>רכיבי הצעת מחיר</h2>
                 <div class="section-actions">
+                  <button type="button" class="compact" id="showPriceList">הצגת מחירון</button>
                   <button type="button" class="compact" id="resetPricingItems">איפוס</button>
                   <button type="button" class="compact" id="addPricingItem">הוספה</button>
                 </div>
@@ -394,6 +395,16 @@
           <button type="button" class="compact" id="appDialogExtra" hidden></button>
           <button type="button" class="compact primary" id="appDialogConfirm">אישור</button>
         </div>
+      </div>
+    </div>
+
+    <div class="app-dialog price-list-dialog" id="priceListDialog" role="dialog" aria-modal="true" aria-labelledby="priceListDialogTitle" hidden>
+      <div class="app-dialog-box price-list-dialog-box">
+        <div class="section-heading-row">
+          <h2 id="priceListDialogTitle">מחירון</h2>
+          <button type="button" class="compact" id="closePriceList">סגירה</button>
+        </div>
+        <div id="priceListContent" class="price-list-content"></div>
       </div>
     </div>
 
