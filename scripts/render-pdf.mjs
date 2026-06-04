@@ -11,7 +11,7 @@ const output = resolve(root, process.argv[3] || "output/example-pango.pdf");
 
 const quote = JSON.parse(readFileSync(input, "utf8"));
 const encoded = Buffer.from(JSON.stringify(quote), "utf8").toString("base64url");
-const indexUrl = `${pathToFileURL(resolve(root, "index.html")).href}#data=${encoded}`;
+const indexUrl = `${pathToFileURL(resolve(root, "index.html")).href}#pdf=1&data=${encoded}`;
 const chrome = findChrome();
 
 mkdirSync(dirname(output), { recursive: true });
