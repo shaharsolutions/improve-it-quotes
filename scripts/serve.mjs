@@ -436,6 +436,9 @@ function parsePdfPayload(request, body) {
     const params = new URLSearchParams(body);
     return {
       filename: params.get("filename") || "",
+      download: params.get("download") === "1",
+      open: params.get("open") === "1",
+      save: params.get("save") === "1",
       quote: JSON.parse(params.get("quote") || "{}"),
     };
   }

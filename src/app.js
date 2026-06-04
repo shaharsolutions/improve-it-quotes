@@ -1936,13 +1936,13 @@
     }
   }
 
-  async function openLinkedPdf() {
+  function openLinkedPdf() {
     const pdfButton = document.getElementById("printQuote");
     pdfButton.disabled = true;
     pdfButton.textContent = "יוצר PDF...";
 
     try {
-      window.location.href = await buildLinkedPdfUrl(normalizeQuote(quote));
+      submitLinkedPdfForm(normalizeQuote(quote), { save: true });
     } catch (error) {
       console.error("Could not create linked PDF", error);
       pdfButton.disabled = false;
@@ -1951,24 +1951,29 @@
     }
   }
 
-  async function buildLinkedPdfUrl(pdfQuote) {
-    const encoded = await compressQuotePayload(JSON.stringify(pdfQuote));
-    const params = new URLSearchParams({
-      filename: buildPdfFilename(pdfQuote),
-      save: "1",
-      z: encoded,
-    });
-    return `${PDF_RENDER_URL}?${params.toString()}`;
-  }
+  function submitLinkedPdfForm(pdfQuote, { save = false, download = false, open = false } = {}) {
+    const form = document.createElement("form");
+    form.method = "post";
+    form.action = PDF_RENDER_URL;
+    form.hidden = true;
 
-  async function buildLinkedPdfDownloadUrl(pdfQuote) {
-    const encoded = await compressQuotePayload(JSON.stringify(pdfQuote));
-    const params = new URLSearchParams({
-      filename: buildPdfFilename(pdfQuote),
-      download: "1",
-      z: encoded,
+    [
+      ["filename", buildPdfFilename(pdfQuote)],
+      ["quote", JSON.stringify(pdfQuote)],
+      ["save", save ? "1" : ""],
+      ["download", download ? "1" : ""],
+      ["open", open ? "1" : ""],
+    ].forEach(([name, value]) => {
+      if (!value) return;
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value;
+      form.appendChild(input);
     });
-    return `${PDF_RENDER_URL}?${params.toString()}`;
+
+    document.body.appendChild(form);
+    form.submit();
   }
 
   function buildPdfFilename(pdfQuote) {
@@ -2110,7 +2115,7 @@
     renderPreview();
 
     if (shouldUseLocalServer()) {
-      window.location.href = await buildLinkedPdfDownloadUrl(quote);
+      submitLinkedPdfForm(quote, { download: true });
       return;
     }
 
