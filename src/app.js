@@ -7,7 +7,6 @@
   const TEMPLATE_SETTINGS_KEY = "improve-it-template-settings";
   const SALESPERSON_SETTINGS_KEY = "improve-it-salesperson-settings";
   const CLIENT_LOGO_SETTINGS_KEY = "improve-it-client-logo-settings";
-  const PDF_RENDER_URL = "http://localhost:4173/api/render-pdf";
   const LOCAL_SIGNED_ARCHIVE_URL = "http://localhost:4173/api/signed-archive";
   const LOCAL_SHARED_QUOTE_URL = "http://localhost:4173/api/shared-quotes";
   const GENERATOR_DOCUMENT_TITLE = "מחולל הצעות מחיר | Improve-IT";
@@ -257,7 +256,6 @@
   let clientLogoSaveTimer = null;
   const isClientMode = getHashParam("mode") === "client";
   const isPdfMode = getHashParam("pdf") === "1";
-  const isLinkedPdfMode = getHashParam("linkedPdf") === "1";
 
   const authScreen = document.getElementById("authScreen");
   const authForm = document.getElementById("authForm");
@@ -323,7 +321,7 @@
   }
 
   function requiresGeneratorAuth() {
-    return !isClientMode && !isPdfMode && !isLinkedPdfMode;
+    return !isClientMode && !isPdfMode;
   }
 
   function isGeneratorAuthenticated() {
@@ -504,10 +502,6 @@
       window.setTimeout(openPrintDialog, 350);
     }
 
-    if (getHashParam("linkedPdf") === "1" && !isClientMode) {
-      clearHashParam("linkedPdf");
-      window.setTimeout(openLinkedPdf, 350);
-    }
   }
 
   async function readInitialQuote() {
@@ -1948,50 +1942,114 @@
     pdfButton.textContent = "יוצר PDF...";
 
     try {
-      if (window.location.origin !== new URL(PDF_RENDER_URL).origin) {
-        window.location.href = await buildLocalLinkedPdfUrl(normalizeQuote(quote));
-        return;
-      }
-
-      submitLinkedPdfForm(normalizeQuote(quote), { save: true });
+      await downloadQuotePdf(normalizeQuote(quote));
     } catch (error) {
       console.error("Could not create linked PDF", error);
+      showAppAlert("לא ניתן ליצור PDF", "יצירת הקובץ נכשלה. רעננו את העמוד ונסו שוב.");
+    } finally {
       pdfButton.disabled = false;
       pdfButton.textContent = "הדפסה / PDF";
-      showAppAlert("לא ניתן ליצור PDF", "ודאו שהשרת המקומי רץ בכתובת http://localhost:4173 ונסו שוב.");
     }
   }
 
-  async function buildLocalLinkedPdfUrl(pdfQuote) {
-    const encoded = await compressQuotePayload(JSON.stringify(pdfQuote));
-    const localAppUrl = new URL("/", PDF_RENDER_URL);
-    localAppUrl.hash = new URLSearchParams({ linkedPdf: "1", z: encoded }).toString();
-    return localAppUrl.toString();
+  async function downloadQuotePdf(pdfQuote) {
+    if (!window.html2canvas || !window.jspdf?.jsPDF) {
+      throw new Error("PDF libraries are unavailable");
+    }
+
+    quote = normalizeQuote(pdfQuote);
+    renderPreview();
+    document.body.classList.add("pdf-export-mode");
+    try {
+      await waitForPdfAssets();
+
+      const pages = Array.from(preview.querySelectorAll(".quote-page"));
+      if (!pages.length) throw new Error("No quote pages were rendered");
+
+      const pdf = new window.jspdf.jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
+      });
+      const internalLinks = collectPdfInternalLinks(pages);
+      if (pages.length > 1 && !internalLinks.length) {
+        throw new Error("No table-of-contents links were found");
+      }
+
+      for (let index = 0; index < pages.length; index += 1) {
+        if (index > 0) pdf.addPage("a4", "portrait");
+        const canvas = await window.html2canvas(pages[index], {
+          backgroundColor: "#ffffff",
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          windowWidth: 1280,
+          windowHeight: 900,
+        });
+        pdf.addImage(canvas.toDataURL("image/jpeg", 0.94), "JPEG", 0, 0, 210, 297, undefined, "FAST");
+      }
+
+      internalLinks.forEach((link) => {
+        pdf.setPage(link.sourcePage + 1);
+        pdf.link(link.x, link.y, link.width, link.height, {
+          pageNumber: link.targetPage + 1,
+          top: 0,
+        });
+      });
+
+      pdf.save(buildPdfFilename(pdfQuote));
+    } finally {
+      document.body.classList.remove("pdf-export-mode");
+    }
   }
 
-  function submitLinkedPdfForm(pdfQuote, { save = false, download = false, open = false } = {}) {
-    const form = document.createElement("form");
-    form.method = "post";
-    form.action = PDF_RENDER_URL;
-    form.hidden = true;
-
-    [
-      ["filename", buildPdfFilename(pdfQuote)],
-      ["quote", JSON.stringify(pdfQuote)],
-      ["save", save ? "1" : ""],
-      ["download", download ? "1" : ""],
-      ["open", open ? "1" : ""],
-    ].forEach(([name, value]) => {
-      if (!value) return;
-      const input = document.createElement("input");
-      input.type = "hidden";
-      input.name = name;
-      input.value = value;
-      form.appendChild(input);
+  function collectPdfInternalLinks(pages) {
+    const pageByTargetId = new Map();
+    pages.forEach((pageElement, pageIndex) => {
+      pageElement.querySelectorAll("[id]").forEach((target) => pageByTargetId.set(target.id, pageIndex));
     });
 
-    document.body.appendChild(form);
-    form.submit();
+    const links = [];
+    pages.forEach((pageElement, sourcePage) => {
+      const pageRect = pageElement.getBoundingClientRect();
+      const mmPerPixel = 210 / pageRect.width;
+
+      pageElement.querySelectorAll(".toc a[href]").forEach((anchor) => {
+        const targetId = decodeURIComponent(new URL(anchor.href, window.location.href).hash.slice(1));
+        const targetPage = pageByTargetId.get(targetId);
+        if (targetPage === undefined) return;
+
+        const rect = anchor.getBoundingClientRect();
+        links.push({
+          sourcePage,
+          targetPage,
+          x: (rect.left - pageRect.left) * mmPerPixel,
+          y: (rect.top - pageRect.top) * mmPerPixel,
+          width: rect.width * mmPerPixel,
+          height: rect.height * mmPerPixel,
+        });
+      });
+    });
+
+    return links;
+  }
+
+  async function waitForPdfAssets() {
+    if (document.fonts?.ready) await document.fonts.ready;
+
+    const images = Array.from(preview.querySelectorAll("img"));
+    await Promise.all(
+      images.map((image) => {
+        if (image.complete) return Promise.resolve();
+        return new Promise((resolve) => {
+          image.addEventListener("load", resolve, { once: true });
+          image.addEventListener("error", resolve, { once: true });
+        });
+      })
+    );
+
+    await new Promise((resolve) => window.requestAnimationFrame(() => window.requestAnimationFrame(resolve)));
   }
 
   function buildPdfFilename(pdfQuote) {
@@ -2136,12 +2194,7 @@
     redrawSignaturePad();
     renderPreview();
 
-    if (shouldUseLocalServer()) {
-      submitLinkedPdfForm(quote, { download: true });
-      return;
-    }
-
-    openPrintDialog();
+    await downloadQuotePdf(quote);
   }
 
   async function showSignedArchive() {
