@@ -257,6 +257,7 @@
   let clientLogoSaveTimer = null;
   const isClientMode = getHashParam("mode") === "client";
   const isPdfMode = getHashParam("pdf") === "1";
+  const isLinkedPdfMode = getHashParam("linkedPdf") === "1";
 
   const authScreen = document.getElementById("authScreen");
   const authForm = document.getElementById("authForm");
@@ -322,7 +323,7 @@
   }
 
   function requiresGeneratorAuth() {
-    return !isClientMode && !isPdfMode;
+    return !isClientMode && !isPdfMode && !isLinkedPdfMode;
   }
 
   function isGeneratorAuthenticated() {
@@ -501,6 +502,11 @@
     if (getHashParam("pdf") === "1" && !isClientMode) {
       clearPdfAutoOpenFlag();
       window.setTimeout(openPrintDialog, 350);
+    }
+
+    if (getHashParam("linkedPdf") === "1" && !isClientMode) {
+      clearHashParam("linkedPdf");
+      window.setTimeout(openLinkedPdf, 350);
     }
   }
 
@@ -1936,12 +1942,17 @@
     }
   }
 
-  function openLinkedPdf() {
+  async function openLinkedPdf() {
     const pdfButton = document.getElementById("printQuote");
     pdfButton.disabled = true;
     pdfButton.textContent = "יוצר PDF...";
 
     try {
+      if (window.location.origin !== new URL(PDF_RENDER_URL).origin) {
+        window.location.href = await buildLocalLinkedPdfUrl(normalizeQuote(quote));
+        return;
+      }
+
       submitLinkedPdfForm(normalizeQuote(quote), { save: true });
     } catch (error) {
       console.error("Could not create linked PDF", error);
@@ -1949,6 +1960,13 @@
       pdfButton.textContent = "הדפסה / PDF";
       showAppAlert("לא ניתן ליצור PDF", "ודאו שהשרת המקומי רץ בכתובת http://localhost:4173 ונסו שוב.");
     }
+  }
+
+  async function buildLocalLinkedPdfUrl(pdfQuote) {
+    const encoded = await compressQuotePayload(JSON.stringify(pdfQuote));
+    const localAppUrl = new URL("/", PDF_RENDER_URL);
+    localAppUrl.hash = new URLSearchParams({ linkedPdf: "1", z: encoded }).toString();
+    return localAppUrl.toString();
   }
 
   function submitLinkedPdfForm(pdfQuote, { save = false, download = false, open = false } = {}) {
@@ -1982,10 +2000,14 @@
   }
 
   function clearPdfAutoOpenFlag() {
-    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-    if (!params.has("pdf")) return;
+    clearHashParam("pdf");
+  }
 
-    params.delete("pdf");
+  function clearHashParam(name) {
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    if (!params.has(name)) return;
+
+    params.delete(name);
     const nextHash = params.toString();
     const nextUrl = `${window.location.pathname}${window.location.search}${nextHash ? `#${nextHash}` : ""}`;
     window.history.replaceState(null, "", nextUrl);
