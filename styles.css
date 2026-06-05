@@ -1560,13 +1560,32 @@ select:focus {
 }
 
 .terms-list {
+  counter-reset: terms-item;
+  direction: rtl;
+  list-style: none;
   margin: 0;
-  padding: 0 20px 0 0;
+  padding: 0;
   line-height: 1.5;
+  text-align: right;
 }
 
 .terms-list li {
+  position: relative;
+  counter-increment: terms-item;
   margin-bottom: 5px;
+  padding-right: 24px;
+  direction: rtl;
+  text-align: right;
+}
+
+.terms-list li::before {
+  content: counter(terms-item) ".";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  direction: ltr;
+  text-align: right;
 }
 
 .approval-line {
