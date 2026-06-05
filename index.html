@@ -11,7 +11,7 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="הצעת מחיר | Improve-IT" />
     <meta name="twitter:description" content="קישור לצפייה בהצעת מחיר דיגיטלית של Improve-IT." />
-    <link rel="stylesheet" href="styles.css?v=20260605-terms-rtl-v1" />
+    <link rel="stylesheet" href="styles.css?v=20260605-dialog-close-v1" />
   </head>
   <body class="auth-required">
     <section class="auth-screen" id="authScreen" aria-labelledby="authTitle">
@@ -388,6 +388,7 @@
 
     <div class="app-dialog" id="appDialog" role="dialog" aria-modal="true" aria-labelledby="appDialogTitle" hidden>
       <div class="app-dialog-box">
+        <button type="button" class="app-dialog-close" id="appDialogClose" aria-label="סגירת החלון" title="סגירה">&times;</button>
         <h2 id="appDialogTitle"></h2>
         <div id="appDialogMessage" class="app-dialog-message"></div>
         <div class="app-dialog-actions">
@@ -412,6 +413,6 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260605-client-pdf-v1" defer></script>
+    <script src="src/app.js?v=20260605-dialog-close-v1" defer></script>
   </body>
 </html>

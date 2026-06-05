@@ -506,6 +506,7 @@ button.danger:hover {
 }
 
 .app-dialog-box {
+  position: relative;
   width: min(420px, 100%);
   padding: 20px;
   border: 1px solid var(--line);
@@ -514,7 +515,31 @@ button.danger:hover {
   box-shadow: var(--shadow);
 }
 
+.app-dialog-close {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.app-dialog-close:hover,
+.app-dialog-close:focus-visible {
+  background: #eef3f6;
+  color: var(--ink);
+}
+
 .app-dialog-box h2 {
+  padding-left: 32px;
   margin: 0 0 10px;
   font-size: 18px;
 }

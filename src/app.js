@@ -293,6 +293,7 @@
   const appDialog = document.getElementById("appDialog");
   const appDialogTitle = document.getElementById("appDialogTitle");
   const appDialogMessage = document.getElementById("appDialogMessage");
+  const appDialogClose = document.getElementById("appDialogClose");
   const appDialogConfirm = document.getElementById("appDialogConfirm");
   const appDialogCancel = document.getElementById("appDialogCancel");
   const appDialogExtra = document.getElementById("appDialogExtra");
@@ -2357,6 +2358,7 @@
         appDialogConfirm.removeEventListener("click", onConfirm);
         appDialogCancel.removeEventListener("click", onCancel);
         appDialogExtra.removeEventListener("click", onExtra);
+        appDialogClose.removeEventListener("click", onClose);
         appDialog.removeEventListener("click", onBackdrop);
         document.removeEventListener("keydown", onKeydown);
         resolve(result);
@@ -2364,6 +2366,7 @@
       const onConfirm = () => close(confirmResult);
       const onCancel = () => close(cancelResult);
       const onExtra = () => close(extraResult);
+      const onClose = () => close(null);
       const onBackdrop = (event) => {
         if (event.target === appDialog && showCancel) close(null);
       };
@@ -2374,6 +2377,7 @@
       appDialogConfirm.addEventListener("click", onConfirm);
       appDialogCancel.addEventListener("click", onCancel);
       appDialogExtra.addEventListener("click", onExtra);
+      appDialogClose.addEventListener("click", onClose);
       appDialog.addEventListener("click", onBackdrop);
       document.addEventListener("keydown", onKeydown);
     });
