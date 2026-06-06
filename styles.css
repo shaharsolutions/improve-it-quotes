@@ -814,6 +814,24 @@ label.wide,
   gap: 8px;
 }
 
+.course-name-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 8px;
+  align-items: end;
+}
+
+.course-name-row label {
+  display: grid;
+  gap: 5px;
+}
+
+@media (max-width: 520px) {
+  .course-name-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 input,
 textarea,
 select {
