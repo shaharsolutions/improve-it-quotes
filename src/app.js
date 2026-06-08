@@ -214,6 +214,8 @@
     courseNames: [],
     courseGroups: [],
     pricingPlanLabel: "השכרה - מסלול שנתי",
+    rentalStartDate: "",
+    rentalEndDate: "",
     pricingIntroText: "",
     additionalUserPrice: 60,
     showTotals: false,
@@ -403,6 +405,7 @@
     setupFloatingSignatureJump();
     renderPreview();
 
+    preview.addEventListener("click", handlePreviewSectionLinkClick);
     form.addEventListener("input", handleFormInput);
     form.addEventListener("change", handleFormInput);
     courseNamesList.addEventListener("input", handleCourseNameInput);
@@ -592,6 +595,8 @@
       : sampleQuote.discountDisplayMode;
     merged.discountValidUntil = monthEndIsoDate(merged.quoteDate);
     merged.pricingPlanLabel = merged.pricingPlanLabel || sampleQuote.pricingPlanLabel;
+    merged.rentalStartDate = parseIsoDate(merged.rentalStartDate) ? merged.rentalStartDate : "";
+    merged.rentalEndDate = parseIsoDate(merged.rentalEndDate) ? merged.rentalEndDate : "";
     merged.pricingIntroText = merged.pricingIntroText || "";
     merged.pricingOptionLabels = {
       ...sampleQuote.pricingOptionLabels,
@@ -683,7 +688,17 @@
         field.value = value ?? "";
       }
     });
+    updateRentalDateConstraints();
     populatePricingOptionLabels();
+  }
+
+  function updateRentalDateConstraints() {
+    const startField = form.elements.rentalStartDate;
+    const endField = form.elements.rentalEndDate;
+    if (!startField || !endField) return;
+
+    startField.max = quote.rentalEndDate || "";
+    endField.min = quote.rentalStartDate || "";
   }
 
   function renderCourseNameInputs() {
@@ -1250,6 +1265,10 @@
       if (form.elements.discountValidUntil) {
         form.elements.discountValidUntil.value = quote.discountValidUntil;
       }
+    }
+
+    if (field.name === "rentalStartDate" || field.name === "rentalEndDate") {
+      updateRentalDateConstraints();
     }
 
     if (field.name === "signatoryName" || field.name === "signatoryTitle") {
@@ -3324,6 +3343,28 @@
     window.requestAnimationFrame(fitPagesToFooter);
   }
 
+  function handlePreviewSectionLinkClick(event) {
+    const link = event.target.closest("a[href]");
+    if (!link) return;
+
+    const targetId = decodeURIComponent(new URL(link.href, window.location.href).hash.slice(1));
+    if (!targetId.startsWith("quote-section-")) return;
+
+    const target = document.getElementById(targetId);
+    if (!target) return;
+
+    event.preventDefault();
+    const previewPanel = preview.closest(".preview-panel");
+    if (previewPanel && previewPanel.scrollHeight > previewPanel.clientHeight) {
+      const targetTop =
+        target.getBoundingClientRect().top - previewPanel.getBoundingClientRect().top + previewPanel.scrollTop;
+      previewPanel.scrollTo({ top: targetTop, behavior: "smooth" });
+      return;
+    }
+
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   function renderQuote(data) {
     const q = normalizeQuote(data, { syncDefaultTexts: false });
     const sections = buildSectionIndex(q);
@@ -3470,8 +3511,9 @@
 
   function renderPricingPage(q, sections) {
     const pricing = buildPricing(q);
-    const planRow = q.pricingPlanLabel
-      ? `<tr class="pricing-plan-row"><td colspan="3">${escapeHtml(q.pricingPlanLabel)}</td></tr>`
+    const planDescription = buildPricingPlanDescription(q);
+    const planRow = planDescription
+      ? `<tr class="pricing-plan-row"><td colspan="3">${escapeHtml(planDescription)}</td></tr>`
       : "";
     const rows = renderPricingRows(q, pricing.rows);
 
@@ -3992,6 +4034,19 @@
     const customIntro = String(q.pricingIntroText || "").trim();
     if (customIntro) return customIntro;
     return "פירוט הרכיבים, העלויות והתכולות הכלולות בהצעה";
+  }
+
+  function buildPricingPlanDescription(q) {
+    const label = String(q.pricingPlanLabel || "").trim();
+    const startDate = q.rentalStartDate ? formatDotDate(q.rentalStartDate) : "";
+    const endDate = q.rentalEndDate ? formatDotDate(q.rentalEndDate) : "";
+    let rentalPeriod = "";
+
+    if (startDate && endDate) rentalPeriod = `תקופת השכרה: ${startDate} עד ${endDate}`;
+    else if (startDate) rentalPeriod = `תחילת השכרה: ${startDate}`;
+    else if (endDate) rentalPeriod = `סיום השכרה: ${endDate}`;
+
+    return [label, rentalPeriod].filter(Boolean).join(" | ");
   }
 
   function buildDiscountNote(q) {
