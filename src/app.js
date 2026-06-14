@@ -404,6 +404,7 @@
     setupSignaturePad();
     setupFloatingSignatureJump();
     renderPreview();
+    scrollToRequestedPreviewSection();
 
     preview.addEventListener("click", handlePreviewSectionLinkClick);
     form.addEventListener("input", handleFormInput);
@@ -2116,7 +2117,7 @@
       const mmPerPixel = 210 / pageRect.width;
 
       pageElement.querySelectorAll(".toc a[href]").forEach((anchor) => {
-        const targetId = decodeURIComponent(new URL(anchor.href, window.location.href).hash.slice(1));
+        const targetId = getPreviewSectionTargetId(anchor.href);
         const targetPage = pageByTargetId.get(targetId);
         if (targetPage === undefined) return;
 
@@ -3347,22 +3348,40 @@
     const link = event.target.closest("a[href]");
     if (!link) return;
 
-    const targetId = decodeURIComponent(new URL(link.href, window.location.href).hash.slice(1));
-    if (!targetId.startsWith("quote-section-")) return;
+    const targetId = getPreviewSectionTargetId(link.href);
+    if (!targetId) return;
 
+    event.preventDefault();
+    scrollToPreviewSection(targetId);
+  }
+
+  function scrollToRequestedPreviewSection() {
+    const targetId = getHashParam("section");
+    if (!targetId) return;
+    window.requestAnimationFrame(() => scrollToPreviewSection(targetId, "auto"));
+  }
+
+  function getPreviewSectionTargetId(href) {
+    const hash = decodeURIComponent(new URL(href, window.location.href).hash.slice(1));
+    if (hash.startsWith("quote-section-")) return hash;
+
+    const targetId = new URLSearchParams(hash).get("section");
+    return targetId?.startsWith("quote-section-") ? targetId : "";
+  }
+
+  function scrollToPreviewSection(targetId, behavior = "smooth") {
     const target = document.getElementById(targetId);
     if (!target) return;
 
-    event.preventDefault();
     const previewPanel = preview.closest(".preview-panel");
     if (previewPanel && previewPanel.scrollHeight > previewPanel.clientHeight) {
       const targetTop =
         target.getBoundingClientRect().top - previewPanel.getBoundingClientRect().top + previewPanel.scrollTop;
-      previewPanel.scrollTo({ top: targetTop, behavior: "smooth" });
+      previewPanel.scrollTo({ top: targetTop, behavior });
       return;
     }
 
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
+    target.scrollIntoView({ behavior, block: "start" });
   }
 
   function renderQuote(data) {
@@ -3722,7 +3741,9 @@
   }
 
   function sectionHref(key) {
-    return `${getShareBaseUrl()}#${sectionId(key)}`;
+    const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    params.set("section", sectionId(key));
+    return `${getShareBaseUrl()}#${params.toString()}`;
   }
 
   function buildServiceDescription(q) {
