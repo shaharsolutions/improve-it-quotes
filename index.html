@@ -11,6 +11,7 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="הצעת מחיר | Improve-IT" />
     <meta name="twitter:description" content="קישור לצפייה בהצעת מחיר דיגיטלית של Improve-IT." />
+    <link rel="icon" type="image/png" href="assets/brand/improve-it-logo.png" />
     <link rel="stylesheet" href="styles.css?v=20260606-price-groups-v1" />
   </head>
   <body class="auth-required">
@@ -51,6 +52,7 @@
           <button type="button" id="showSignedArchive">מאגר חתומות</button>
           <button type="button" id="showSettings">הגדרות</button>
           <button type="button" id="logoutGenerator">התנתק</button>
+          <button type="button" id="downloadWord">הורדה ל-Word</button>
           <button type="button" class="primary" id="printQuote">הדפסה / PDF</button>
         </div>
       </header>
@@ -420,7 +422,59 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script>
+      var global = window;
+      var process = window.process || { env: {} };
+      function createBrowserBuffer(bytes) {
+        Object.defineProperty(bytes, "toString", {
+          configurable: true,
+          value(encoding) {
+            if (!encoding || encoding === "utf8" || encoding === "utf-8") {
+              return new TextDecoder().decode(this);
+            }
+            if (encoding === "base64") {
+              let binary = "";
+              for (let index = 0; index < this.length; index += 1) {
+                binary += String.fromCharCode(this[index]);
+              }
+              return window.btoa(binary);
+            }
+            return Array.from(this).join(",");
+          },
+        });
+        return bytes;
+      }
+      var Buffer = window.Buffer || {
+          from(data, encoding) {
+            if (typeof data === "string") {
+              if (encoding === "base64") {
+                const binary = window.atob(data);
+                const bytes = new Uint8Array(binary.length);
+                for (let index = 0; index < binary.length; index += 1) {
+                  bytes[index] = binary.charCodeAt(index);
+                }
+                return createBrowserBuffer(bytes);
+              }
+              return createBrowserBuffer(new TextEncoder().encode(data));
+            }
+            if (data instanceof ArrayBuffer) return createBrowserBuffer(new Uint8Array(data));
+            if (ArrayBuffer.isView(data)) {
+              return createBrowserBuffer(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+            }
+            return createBrowserBuffer(new Uint8Array(data));
+          },
+          isBuffer() {
+            return false;
+          },
+        };
+      window.global = global;
+      window.process = process;
+      window.Buffer = Buffer;
+      globalThis.Buffer = Buffer;
+    </script>
+    <script src="assets/vendor/jszip.min.js"></script>
+    <script src="assets/templates/improve-it-word-template.js"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260614-section-navigation-v1" defer></script>
+    <script src="src/app.js?v=20260619-word-structure-v4" defer></script>
   </body>
 </html>

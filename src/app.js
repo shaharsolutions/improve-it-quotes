@@ -499,6 +499,7 @@
     });
     document.getElementById("jumpToSignature").addEventListener("click", scrollToClientSignature);
     document.getElementById("sendSignedQuote").addEventListener("click", sendSignedQuote);
+    document.getElementById("downloadWord").addEventListener("click", exportCurrentQuoteToWord);
     document.getElementById("printQuote").addEventListener("click", showPrintPdfChoice);
     clearSignatureButton.addEventListener("click", clearSignature);
 
@@ -2053,6 +2054,451 @@
     }
   }
 
+  async function exportCurrentQuoteToWord() {
+    const wordButton = document.getElementById("downloadWord");
+    wordButton.disabled = true;
+    wordButton.textContent = "יוצר Word...";
+
+    try {
+      await downloadQuoteWord(normalizeQuote(quote));
+    } catch (error) {
+      console.error("Could not create Word document", error);
+      showAppAlert("לא ניתן ליצור קובץ Word", "יצירת הקובץ נכשלה. רעננו את העמוד ונסו שוב.");
+    } finally {
+      wordButton.disabled = false;
+      wordButton.textContent = "הורדה ל-Word";
+    }
+  }
+
+  async function downloadQuoteWord(wordQuote) {
+    if (typeof window.JSZip !== "function") {
+      throw new Error("Word template library is unavailable");
+    }
+
+    quote = normalizeQuote(wordQuote);
+    const blob = await applyWordTemplate(quote);
+    downloadBlob(blob, buildWordFilename(wordQuote));
+  }
+
+  function prepareWordPages(wordPreview) {
+    const pages = Array.from(wordPreview.querySelectorAll(".quote-page"));
+    if (!pages.length) throw new Error("No quote pages were rendered");
+
+    pages.forEach((page, index) => {
+      page.style.removeProperty("page-break-after");
+      page.style.removeProperty("break-after");
+      page.style.width = "100%";
+      page.style.height = "auto";
+      page.style.minHeight = "0";
+      page.style.padding = "0";
+      page.style.overflow = "visible";
+
+      page.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+      page.querySelectorAll("a[href]").forEach((anchor) => anchor.removeAttribute("href"));
+
+      if (index < pages.length - 1) {
+        const pageBreak = document.createElement("div");
+        pageBreak.className = "page-break";
+        page.after(pageBreak);
+      }
+    });
+  }
+
+  function inlineComputedWordStyles(sourceRoot, targetRoot) {
+    const sourceElements = [sourceRoot, ...sourceRoot.querySelectorAll("*")];
+    const targetElements = [targetRoot, ...targetRoot.querySelectorAll("*")];
+    const properties = [
+      "color", "background-color", "font-family", "font-size", "font-weight", "font-style",
+      "line-height", "text-align", "text-decoration", "direction", "margin-top", "margin-right",
+      "margin-bottom", "margin-left", "padding-top", "padding-right", "padding-bottom", "padding-left",
+      "border-top", "border-right", "border-bottom", "border-left", "border-collapse", "vertical-align",
+      "white-space", "list-style-type", "width", "height", "max-width",
+    ];
+
+    sourceElements.forEach((sourceElement, index) => {
+      const targetElement = targetElements[index];
+      if (!targetElement) return;
+      const computed = window.getComputedStyle(sourceElement);
+      properties.forEach((property) => {
+        const value = computed.getPropertyValue(property);
+        const isTransparentBackground = property === "background-color"
+          && ["transparent", "rgba(0, 0, 0, 0)"].includes(value.trim().toLowerCase());
+        if (value && !isTransparentBackground) targetElement.style.setProperty(property, value);
+      });
+    });
+  }
+
+  function extractWordHeader(wordPreview) {
+    const header = wordPreview.querySelector(".quote-header");
+    wordPreview.querySelectorAll(".quote-header").forEach((element) => element.remove());
+    if (!header) return "";
+
+    header.style.position = "static";
+    header.style.width = "100%";
+    header.style.margin = "0";
+    header.style.direction = "ltr";
+    return `<div style="width:100%;direction:ltr;">${header.outerHTML}</div>`;
+  }
+
+  function extractWordFooter(wordPreview) {
+    const footer = wordPreview.querySelector(".quote-footer");
+    wordPreview.querySelectorAll(".quote-footer").forEach((element) => element.remove());
+    if (!footer) return "";
+
+    footer.style.position = "static";
+    footer.style.width = "100%";
+    footer.style.margin = "0";
+    footer.style.direction = "ltr";
+    return `<div style="width:100%;direction:ltr;">${footer.outerHTML}</div>`;
+  }
+
+  async function applyWordTemplate(wordQuote) {
+    if (!window.IMPROVE_IT_WORD_TEMPLATE_BASE64) {
+      throw new Error("Embedded Word template is unavailable");
+    }
+
+    const templateBytes = decodeBase64Bytes(window.IMPROVE_IT_WORD_TEMPLATE_BASE64);
+    const templateZip = await window.JSZip.loadAsync(templateBytes);
+    const templateDocumentFile = templateZip.file("word/document.xml");
+    if (!templateDocumentFile) throw new Error("Invalid Word template package: word/document.xml");
+    const templateDocumentXml = await templateDocumentFile.async("string");
+
+    const parser = new DOMParser();
+    const serializer = new XMLSerializer();
+    const templateDocument = parseWordXml(parser, templateDocumentXml, "template document");
+    const wordNamespace = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+    const templateBody = templateDocument.getElementsByTagNameNS(wordNamespace, "body")[0];
+    if (!templateBody) throw new Error("The Word template is missing its document body");
+
+    populateWordTemplate(templateDocument, templateBody, wordNamespace, wordQuote);
+
+    templateZip.file("word/document.xml", serializer.serializeToString(templateDocument));
+    return templateZip.generateAsync({
+      type: "blob",
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      compression: "DEFLATE",
+    });
+  }
+
+  function populateWordTemplate(documentXml, body, wordNamespace, q) {
+    const paragraphs = Array.from(body.children).filter((element) => element.localName === "p");
+    if (paragraphs.length < 117) throw new Error("The Word template structure is incomplete");
+    const setParagraph = (index, text) => setWordParagraphText(documentXml, paragraphs[index], wordNamespace, text);
+
+    setParagraph(0, formatDate(q.quoteDate));
+    setParagraph(2, q.contactName || "");
+    setParagraph(3, q.contactTitle || "");
+    setParagraph(4, q.clientCompany || "");
+    setParagraph(8, q.subject || `הצעת מחיר עבור ${q.clientCompany || ""}`);
+    setParagraph(10, `תודה על פנייתך לקבלת הצעת מחיר עבור מוצרי הדרכה דיגיטליים עבור ${q.clientCompany || "הארגון"}, בהמשך לשיחתנו, להלן הצעתנו:`);
+    setParagraph(22, `${q.signatoryName || ""}${q.signatoryName ? "," : ""}`);
+    const signatoryTitle = String(q.signatoryTitle || "")
+      .replace(/,?\s*Improve-IT\s*$/i, "")
+      .replace(/,\s*$/, "")
+      .trim();
+    setParagraph(23, `${signatoryTitle}${signatoryTitle ? "," : ""}`);
+
+    const originalProfileParagraphs = [28, 29, 30, 31].map((index) => getWordParagraphText(paragraphs[index], wordNamespace));
+    const profileParagraphs = String(q.companyProfileText || "")
+      .split(/\n{2,}/)
+      .map((text) => text.trim())
+      .filter(Boolean);
+    [28, 29, 30, 31].forEach((index, offset) => {
+      setParagraph(index, profileParagraphs[offset] || originalProfileParagraphs[offset] || "");
+    });
+
+    const processLines = lines(q.workProcessText);
+    if (q.includeHebrewVoiceover || q.includeEnglishVoiceover) {
+      processLines.push("קריינות: לאחר אישור הלומדה הסופית תצא הלומדה לקריינות ולהטמעת הקריינות בלומדה.");
+      processLines.push("תיקוף הקריינות: תיקוף ואישור הקריינות.");
+    }
+    if (q.includeTranslation) {
+      processLines.push("תרגום: לאחר אישור הלומדה הסופית תצא הלומדה לתרגום ולהטמעת התרגום בלומדה.");
+      processLines.push("תיקוף התרגום: תיקוף ואישור התרגום.");
+    }
+    [53, 54, 55, 56, 57, 58, 59, 60, 61].forEach((index, offset) => setParagraph(index, processLines[offset] || ""));
+
+    const finePrintSlots = [81, 82, 83, 84, 85, 87, 88, 89, 90];
+    buildPricingFinePrint(q).forEach((text, index) => {
+      if (finePrintSlots[index] !== undefined) setParagraph(finePrintSlots[index], text);
+    });
+    finePrintSlots.slice(buildPricingFinePrint(q).length).forEach((index) => setParagraph(index, ""));
+    setParagraph(89, `הצעת המחיר תהיה בתוקף למשך ${q.validDays} ימים מהוצאתה`);
+
+    const termLines = lines(q.termsText);
+    [100, 101, 102, 103, 104, 105].forEach((index, offset) => setParagraph(index, termLines[offset] || ""));
+    const cancellationLines = lines(q.cancellationText);
+    [108, 109, 110, 111].forEach((index, offset) => setParagraph(index, cancellationLines[offset] || ""));
+    setParagraph(115, `שם ${q.clientSignerName || "_______"}    תאריך ${q.clientSignatureDate ? formatShortDate(q.clientSignatureDate) : "__/__/__"}    חתימה __________    חותמת __________`);
+
+    const table = Array.from(body.children).find((element) => element.localName === "tbl");
+    if (table) populateWordPricingTable(documentXml, table, wordNamespace, q);
+  }
+
+  function populateWordPricingTable(documentXml, table, wordNamespace, q) {
+    const rows = Array.from(table.children).filter((element) => element.localName === "tr");
+    if (rows.length < 3) return;
+    const headerRow = rows[0];
+    const planTemplate = rows[1];
+    const itemTemplate = rows[2];
+    const includedItemTemplate = rows[3] || itemTemplate;
+    const discountTemplate = rows[4] || itemTemplate;
+    rows.slice(1).forEach((row) => row.remove());
+
+    const planDescription = buildPricingPlanDescription(q);
+    if (planDescription) {
+      const planRow = planTemplate.cloneNode(true);
+      setWordTableRowText(documentXml, planRow, wordNamespace, [planDescription]);
+      table.appendChild(planRow);
+    }
+
+    const pricing = buildPricing(q);
+    pricing.rows.forEach((item) => {
+      const itemRow = (item.included ? includedItemTemplate : itemTemplate).cloneNode(true);
+      setWordTableRowText(documentXml, itemRow, wordNamespace, [
+        item.title,
+        item.included ? "\nכלול" : formatCurrency(item.price),
+        item.notes || "",
+      ]);
+      table.appendChild(itemRow);
+    });
+
+    if (pricing.discount) {
+      const discountRow = discountTemplate.cloneNode(true);
+      setWordTableRowText(documentXml, discountRow, wordNamespace, [
+        q.discountTitle || "הנחה",
+        `${formatCurrency(pricing.total)}\nלאחר הנחה`,
+        buildDiscountNote(q),
+      ]);
+      table.appendChild(discountRow);
+    }
+
+    if (!pricing.rows.length && !planDescription) table.appendChild(headerRow.cloneNode(true));
+  }
+
+  function setWordTableRowText(documentXml, row, wordNamespace, values) {
+    const cells = Array.from(row.children).filter((element) => element.localName === "tc");
+    cells.forEach((cell, index) => {
+      const value = values[index] ?? values[0] ?? "";
+      setWordTableCellText(documentXml, cell, wordNamespace, value);
+    });
+  }
+
+  function setWordTableCellText(documentXml, cell, wordNamespace, value) {
+    const paragraphs = Array.from(cell.getElementsByTagNameNS(wordNamespace, "p"));
+    if (!paragraphs.length) return;
+    const textLines = String(value || "").split(/\r?\n/);
+
+    while (paragraphs.length < textLines.length) {
+      const clonedParagraph = paragraphs[paragraphs.length - 1].cloneNode(true);
+      cell.appendChild(clonedParagraph);
+      paragraphs.push(clonedParagraph);
+    }
+
+    paragraphs.forEach((paragraph, index) => {
+      setWordParagraphText(documentXml, paragraph, wordNamespace, textLines[index] || "");
+    });
+  }
+
+  function setWordParagraphText(documentXml, paragraph, wordNamespace, text) {
+    if (!paragraph) return;
+    const paragraphProperties = Array.from(paragraph.children).find((element) => element.localName === "pPr");
+    const firstRun = Array.from(paragraph.children).find((element) => element.localName === "r");
+    const runProperties = firstRun
+      ? Array.from(firstRun.children).find((element) => element.localName === "rPr")
+      : null;
+    Array.from(paragraph.children).forEach((element) => {
+      if (element !== paragraphProperties) element.remove();
+    });
+
+    const run = documentXml.createElementNS(wordNamespace, "w:r");
+    if (runProperties) run.appendChild(runProperties.cloneNode(true));
+    String(text || "").split("\n").forEach((line, index) => {
+      if (index > 0) run.appendChild(documentXml.createElementNS(wordNamespace, "w:br"));
+      const textElement = documentXml.createElementNS(wordNamespace, "w:t");
+      textElement.setAttribute("xml:space", "preserve");
+      textElement.textContent = line;
+      run.appendChild(textElement);
+    });
+    paragraph.appendChild(run);
+  }
+
+  function getWordParagraphText(paragraph, wordNamespace) {
+    if (!paragraph) return "";
+    return Array.from(paragraph.getElementsByTagNameNS(wordNamespace, "t"))
+      .map((element) => element.textContent || "")
+      .join("");
+  }
+
+  function decodeBase64Bytes(base64) {
+    const binary = window.atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) {
+      bytes[index] = binary.charCodeAt(index);
+    }
+    return bytes;
+  }
+
+  function parseWordXml(parser, xml, label) {
+    const documentXml = parser.parseFromString(xml, "application/xml");
+    if (documentXml.getElementsByTagName("parsererror").length) {
+      throw new Error(`Could not parse ${label}`);
+    }
+    return documentXml;
+  }
+
+  async function migrateWordRelationships({
+    templateZip,
+    generatedZip,
+    contentElements,
+    templateRels,
+    generatedRels,
+    relationshipNamespace,
+    packageRelationshipNamespace,
+  }) {
+    const relationshipAttributes = ["id", "embed", "link"];
+    const referencedIds = new Set();
+    const contentNodes = contentElements.flatMap((element) => [
+      element,
+      ...Array.from(element.getElementsByTagName("*")),
+    ]);
+    contentNodes.forEach((element) => {
+      relationshipAttributes.forEach((attribute) => {
+        const value = element.getAttributeNS(relationshipNamespace, attribute);
+        if (value) referencedIds.add(value);
+      });
+    });
+
+    const generatedRelationships = Array.from(
+      generatedRels.getElementsByTagNameNS(packageRelationshipNamespace, "Relationship")
+    );
+    const relationshipIdMap = new Map();
+    let exportIndex = 1;
+
+    for (const relationship of generatedRelationships) {
+      const oldId = relationship.getAttribute("Id");
+      if (!referencedIds.has(oldId)) continue;
+
+      const type = relationship.getAttribute("Type");
+      const targetMode = relationship.getAttribute("TargetMode");
+      const originalTarget = relationship.getAttribute("Target");
+      const newId = `rIdExport${exportIndex}`;
+      let newTarget = originalTarget;
+
+      if (targetMode !== "External") {
+        const generatedPath = `word/${originalTarget.replace(/^\.\//, "")}`;
+        const generatedFile = generatedZip.file(generatedPath);
+        if (!generatedFile) continue;
+        const extension = originalTarget.includes(".") ? originalTarget.split(".").pop() : "bin";
+        newTarget = `media/export-${exportIndex}.${extension}`;
+        templateZip.file(`word/${newTarget}`, await generatedFile.async("uint8array"));
+      }
+
+      const newRelationship = templateRels.createElementNS(packageRelationshipNamespace, "Relationship");
+      newRelationship.setAttribute("Id", newId);
+      newRelationship.setAttribute("Type", type);
+      newRelationship.setAttribute("Target", newTarget);
+      if (targetMode) newRelationship.setAttribute("TargetMode", targetMode);
+      templateRels.documentElement.appendChild(newRelationship);
+      relationshipIdMap.set(oldId, newId);
+      exportIndex += 1;
+    }
+
+    contentNodes.forEach((element) => {
+      relationshipAttributes.forEach((attribute) => {
+        const oldId = element.getAttributeNS(relationshipNamespace, attribute);
+        const newId = relationshipIdMap.get(oldId);
+        if (newId) element.setAttributeNS(relationshipNamespace, `r:${attribute}`, newId);
+      });
+    });
+  }
+
+  function collectWordStyles() {
+    return Array.from(document.styleSheets)
+      .map((styleSheet) => {
+        try {
+          return Array.from(styleSheet.cssRules || []).map((rule) => rule.cssText).join("\n");
+        } catch (error) {
+          console.warn("Could not read a stylesheet for Word export", error);
+          return "";
+        }
+      })
+      .join("\n")
+      .replace(/(?:page-break-after|break-after)\s*:[^;}{]+;?/gi, "");
+  }
+
+  async function inlineWordImages(root) {
+    const images = Array.from(root.querySelectorAll("img"));
+    await Promise.all(images.map(async (image) => {
+      if (!image.src || image.src.startsWith("data:")) return;
+      const imageUrl = new URL(image.src, window.location.href);
+      const isRemoteCrossOrigin = ["http:", "https:"].includes(imageUrl.protocol)
+        && imageUrl.origin !== window.location.origin;
+      if (isRemoteCrossOrigin) {
+        replaceBlockedWordImage(image);
+        return;
+      }
+      try {
+        const response = await fetch(image.src);
+        if (!response.ok) throw new Error(`Image request returned ${response.status}`);
+        image.src = await blobToDataUrl(await response.blob());
+      } catch (error) {
+        replaceBlockedWordImage(image);
+        console.warn("Skipped a CORS-blocked image in Word export", image.src, error);
+      }
+    }));
+  }
+
+  function replaceBlockedWordImage(image) {
+    const logoCard = image.closest(".client-logo-card");
+    if (logoCard) {
+      let caption = logoCard.querySelector("figcaption");
+      if (!caption) {
+        caption = document.createElement("figcaption");
+        caption.textContent = image.alt || "לוגו לקוח";
+        logoCard.appendChild(caption);
+      }
+      caption.style.display = "block";
+      caption.style.padding = "8px";
+      caption.style.color = "#073a3a";
+      caption.style.fontWeight = "700";
+      caption.style.textAlign = "center";
+      image.remove();
+      return;
+    }
+
+    if (!image.alt) {
+      image.remove();
+      return;
+    }
+
+    const fallback = document.createElement("span");
+    fallback.textContent = image.alt;
+    fallback.style.fontWeight = "700";
+    fallback.style.textAlign = "center";
+    image.replaceWith(fallback);
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.addEventListener("load", () => resolve(reader.result), { once: true });
+      reader.addEventListener("error", () => reject(reader.error), { once: true });
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   async function downloadQuotePdf(pdfQuote) {
     if (!window.html2canvas || !window.jspdf?.jsPDF) {
       throw new Error("PDF libraries are unavailable");
@@ -2156,6 +2602,11 @@
   function buildPdfFilename(pdfQuote) {
     const quoteNumber = String(pdfQuote.quoteNumber || "quote").trim() || "quote";
     return `improve-it-${quoteNumber}.pdf`;
+  }
+
+  function buildWordFilename(wordQuote) {
+    const quoteNumber = String(wordQuote.quoteNumber || "quote").trim() || "quote";
+    return `improve-it-${quoteNumber}.docx`;
   }
 
   function clearPdfAutoOpenFlag() {
