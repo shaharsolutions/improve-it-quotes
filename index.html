@@ -290,6 +290,92 @@
             </section>
 
             <section class="editor-section">
+              <h2>אזורים כלליים בהצעה</h2>
+              <div class="field-grid">
+                <label class="wide">
+                  פס כותרת עליון
+                  <input name="headerRibbonText" type="text" />
+                </label>
+                <label class="wide">
+                  ברכת פתיחה
+                  <input name="greetingText" type="text" />
+                </label>
+                <label class="wide">
+                  פתיח הצעה
+                  <textarea name="coverIntroText" rows="3"></textarea>
+                </label>
+                <label class="wide">
+                  טקסט לפני תוכן עניינים
+                  <input name="coverIncludedText" type="text" />
+                </label>
+                <label class="wide">
+                  חתימת פתיח
+                  <input name="closingText" type="text" />
+                </label>
+                <label class="wide">
+                  כותרת הדגשה בפרופיל חברה
+                  <input name="companyAccentTitle" type="text" />
+                </label>
+                <label class="wide">
+                  טקסט הדגשה בפרופיל חברה
+                  <textarea name="companyAccentText" rows="3"></textarea>
+                </label>
+                <label>
+                  כותרת שירות LMS
+                  <input name="lmsServiceTitle" type="text" />
+                </label>
+                <label>
+                  כותרת עמודת רכיב
+                  <input name="pricingItemHeader" type="text" />
+                </label>
+                <label>
+                  כותרת עמודת עלות
+                  <input name="pricingCostHeader" type="text" />
+                </label>
+                <label>
+                  כותרת עמודת הערות
+                  <input name="pricingNotesHeader" type="text" />
+                </label>
+                <label class="wide">
+                  תנאי תשלום
+                  <input name="paymentTermsText" type="text" />
+                </label>
+                <label class="wide">
+                  טקסט תשלום שנתי
+                  <textarea name="lmsAnnualPaymentText" rows="2"></textarea>
+                </label>
+                <label class="wide">
+                  טקסט תוקף ההצעה
+                  <input name="quoteValidityText" type="text" />
+                </label>
+                <label class="wide">
+                  שורת אישור לקוח
+                  <input name="approvalLineText" type="text" />
+                </label>
+                <label class="wide">
+                  הערת חתימה דיגיטלית
+                  <input name="approvalNoteText" type="text" />
+                </label>
+                <label>
+                  פוטר - כתובת
+                  <input name="footerAddressText" type="text" />
+                </label>
+                <label>
+                  פוטר - אתר
+                  <input name="footerWebsiteText" type="text" />
+                </label>
+                <label>
+                  פוטר - אימייל
+                  <input name="footerEmailText" type="text" />
+                </label>
+                <label>
+                  פוטר - טלפון
+                  <input name="footerPhoneText" type="text" />
+                </label>
+              </div>
+            </section>
+
+            <section class="editor-section">
               <div class="section-heading-row">
                 <h2>רכיבי הצעת מחיר</h2>
                 <div class="section-actions">
@@ -475,6 +561,6 @@
     <script src="assets/vendor/jszip.min.js"></script>
     <script src="assets/templates/improve-it-word-template.js"></script>
     <script src="config/supabase-config.js"></script>
-    <script src="src/app.js?v=20260619-word-structure-v4" defer></script>
+    <script src="src/app.js?v=20260707-editable-proposal-areas" defer></script>
   </body>
 </html>

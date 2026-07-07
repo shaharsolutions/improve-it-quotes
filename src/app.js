@@ -149,6 +149,29 @@
     cancellationText:
       "על תכולה אשר תבוטל לפני תחילת העבודה הרשמית ייגבו 30% מסך המחיר המוזמן, למעט אם הועברו חומרים כלשהם למזמין; במקרה כזה תשולם העלות המלאה.\nתכולת עבודה אשר נכנסה לעבודה תשולם בהתאם לאבן הדרך הבאה בתוספת 20% מסך שארית ההזמנה.\nלא יתקיימו החזרים מאבני דרך ששולמו.\nכלל תכולות העבודה משפיעות האחת על השנייה; ביטול של תכולות עלול לגרור שינוי במחירים ליחידה של שאר התכולות המוזמנות, בכפוף להצעה זו ולשיקול דעתה הבלעדי של Improve-IT.",
   };
+  const DEFAULT_PROPOSAL_AREA_TEXTS = {
+    headerRibbonText: "פיתוח הדרכה | למידה דיגיטלית | תהליכי הכשרה | סרטוני הדרכה",
+    greetingText: "{name} שלום רב,",
+    coverIntroText: "תודה על פנייתך לקבלת הצעת מחיר ל{service} עבור {company}, להלן הצעתנו:",
+    coverIncludedText: "המסמך שלהלן כולל את:",
+    closingText: "בברכה,",
+    companyAccentTitle: "Improve-IT משלבת מתודולוגיה וטכנולוגיה לשיפור ביצועים בארגונים.",
+    companyAccentText:
+      "אנו מלווים ארגונים ואת מחלקות ההדרכה ביצירת הקשר שבין תשתיות הפיתוח הארגוני וההדרכה לבין התוצאות העסקיות, בכלים ובפרקטיקות שעובדות בארגונים.",
+    lmsServiceTitle: "שירות LMS",
+    pricingItemHeader: "הרכיב",
+    pricingCostHeader: "עלות",
+    pricingNotesHeader: "הערות",
+    paymentTermsText: "תנאי תשלום לשירות לומדה בענן: שוטף + 30.",
+    lmsAnnualPaymentText: "מסלול שנתי: תשלום מראש לשנה עם העברת הזמנת עבודה.",
+    quoteValidityText: "הצעת המחיר תהיה בתוקף למשך {validDays} ימים מהוצאתה.",
+    approvalLineText: "אני מאשר/ת את הסכמתי לתנאים המצוינים במסמך זה",
+    approvalNoteText: "החתימה הדיגיטלית נשמרת כחלק מנתוני ההצעה ותופיע בקובץ ה-PDF.",
+    footerAddressText: "בזל 3, פתח תקווה",
+    footerWebsiteText: "www.improve-it.co.il",
+    footerEmailText: "ziv@improve-it.co.il",
+    footerPhoneText: "073-7858198",
+  };
   const LEGACY_CLIENT_LOGOS_SRC = "assets/brand/client-logos.png";
   const DEFAULT_CLIENT_LOGOS = [
     { name: "מאוחדת", src: "assets/brand/client-logos/meuhedet.png" },
@@ -241,6 +264,7 @@
     solutionText:
       "הפתרון המוצע מתבסס על לומדות מדף אשר פונה למכנה הרחב של עובדי ארגון לדוגמה.\n\nכל לומדה תכלול סימולציות ותרגולים במרבית הפרקים אשר יאפשרו לכל לומד להתקדם בקצב שלו תוך יצירת אינטראקציה ועניין במהלך הלימוד, כמו גם תרגום של נהלי העבודה להתמודדויות היומיומיות במידה ואלה נדרשות מן העובד, ופתרון סימולטיבי של מצבים אשר עשויים להתרחש במהלך יום העבודה.\n\nהאתגר המרכזי של תהליך הלימוד הנדרש נמצא ביכולת של העובדים לנתח בעצמם מקרים ודילמות בהתאם לתהליכי העבודה במידה והם נדרשים מעובדי ארגון לדוגמה ובהתאם להנחיות הארגון.\n\nתהליך בניית הלומדה, סיפור המסגרת המלווה את תהליך הלמידה, החלקים הוויזואליים, כמו גם האינטראקציות האינטראקטיביות של הלומדה מהווים כלי תומך להתמודדות עם האתגר וליישום וביצוע ההתנהגות הנדרשת מן העובדים כאשר הם נדרשים לטפל בבעיות או באירועים בארגון לדוגמה.",
     ...DEFAULT_SECTION_TEXTS,
+    ...DEFAULT_PROPOSAL_AREA_TEXTS,
     customItems: [],
     showCompanyProfile: true,
     showClients: true,
@@ -610,6 +634,9 @@
       }
     });
     Object.entries(DEFAULT_SECTION_TEXTS).forEach(([key, defaultValue]) => {
+      merged[key] = typeof merged[key] === "string" ? merged[key] : defaultValue;
+    });
+    Object.entries(DEFAULT_PROPOSAL_AREA_TEXTS).forEach(([key, defaultValue]) => {
       merged[key] = typeof merged[key] === "string" ? merged[key] : defaultValue;
     });
     merged.contactTitle = merged.contactTitle || "";
@@ -2190,7 +2217,13 @@
     setParagraph(3, q.contactTitle || "");
     setParagraph(4, q.clientCompany || "");
     setParagraph(8, q.subject || `הצעת מחיר עבור ${q.clientCompany || ""}`);
-    setParagraph(10, `תודה על פנייתך לקבלת הצעת מחיר עבור מוצרי הדרכה דיגיטליים עבור ${q.clientCompany || "הארגון"}, בהמשך לשיחתנו, להלן הצעתנו:`);
+    setParagraph(
+      10,
+      formatProposalAreaText(q.coverIntroText, {
+        service: buildServiceDescription(q),
+        company: q.clientCompany || "הארגון",
+      })
+    );
     setParagraph(22, `${q.signatoryName || ""}${q.signatoryName ? "," : ""}`);
     const signatoryTitle = String(q.signatoryTitle || "")
       .replace(/,?\s*Improve-IT\s*$/i, "")
@@ -2223,7 +2256,7 @@
       if (finePrintSlots[index] !== undefined) setParagraph(finePrintSlots[index], text);
     });
     finePrintSlots.slice(buildPricingFinePrint(q).length).forEach((index) => setParagraph(index, ""));
-    setParagraph(89, `הצעת המחיר תהיה בתוקף למשך ${q.validDays} ימים מהוצאתה`);
+    setParagraph(89, formatProposalAreaText(q.quoteValidityText, { validDays: q.validDays, company: q.clientCompany }));
 
     const termLines = lines(q.termsText);
     [100, 101, 102, 103, 104, 105].forEach((index, offset) => setParagraph(index, termLines[offset] || ""));
@@ -3854,6 +3887,14 @@
     const serviceDescription = buildServiceDescription(q);
     const greetingName = (q.contactName || "").split(/\s+/)[0] || q.contactName || "שלום";
     const contactTitle = q.contactTitle ? `<br />${escapeHtml(q.contactTitle)}` : "";
+    const greetingText = formatProposalAreaText(q.greetingText, {
+      name: greetingName,
+      company: q.clientCompany,
+    });
+    const coverIntro = formatProposalAreaText(q.coverIntroText, {
+      service: serviceDescription,
+      company: q.clientCompany,
+    });
     const toc = sections
       .map(
         (section) => `
@@ -3868,17 +3909,17 @@
     return page(`
       <p class="date-line">${formatDate(q.quoteDate)}</p>
       <p class="recipient">לכבוד<br />${escapeHtml(q.contactName)}${contactTitle}<br />${escapeHtml(q.clientCompany)}</p>
-      <p>${escapeHtml(greetingName)} שלום רב,</p>
+      ${paragraphs(greetingText)}
       <div class="subject">${escapeHtml(renderSubjectLine(q))}</div>
-      <p>תודה על פנייתך לקבלת הצעת מחיר ל${escapeHtml(serviceDescription)} עבור ${escapeHtml(q.clientCompany)}, להלן הצעתנו:</p>
-      <p>המסמך שלהלן כולל את:</p>
+      ${paragraphs(coverIntro)}
+      ${paragraphs(q.coverIncludedText)}
       <table class="toc"><tbody>${toc}</tbody></table>
       <div class="signature-block">
-        <p>בברכה,</p>
+        ${paragraphs(q.closingText)}
         <strong>${escapeHtml(q.signatoryName)}</strong>
         <span>${escapeHtml(q.signatoryTitle)}</span>
       </div>
-    `, "cover-page");
+    `, "cover-page", q);
   }
 
   function renderCompanyPage(q, sections) {
@@ -3887,12 +3928,12 @@
         <h1 class="page-title">${sectionTitleLink("profile", sectionTitle(sections, "profile"))}</h1>
         ${paragraphs(q.companyProfileText)}
         <div class="accent-band">
-          <strong>Improve-IT משלבת מתודולוגיה וטכנולוגיה לשיפור ביצועים בארגונים.</strong>
-          <span>אנו מלווים ארגונים ואת מחלקות ההדרכה ביצירת הקשר שבין תשתיות הפיתוח הארגוני וההדרכה לבין התוצאות העסקיות, בכלים ובפרקטיקות שעובדות בארגונים.</span>
+          <strong>${escapeHtml(q.companyAccentTitle)}</strong>
+          <span>${formatNotes(q.companyAccentText)}</span>
         </div>
         <img class="method-diagram" src="assets/brand/method-diagram.png" alt="" />
       </section>
-    `);
+    `, "", q);
   }
 
   function renderClientsPage(q) {
@@ -3918,7 +3959,7 @@
         <h1 class="page-title">${sectionTitleLink("clients", q.clientsText || "מבין לקוחותינו")}</h1>
         ${logosMarkup}
       </section>
-    `);
+    `, "", q);
   }
 
   function renderBackgroundSolutionPage(q, sections) {
@@ -3941,7 +3982,7 @@
       `);
     }
 
-    return page(blocks.join(""));
+    return page(blocks.join(""), "", q);
   }
 
   function renderWorkProcessPage(q, sections) {
@@ -3960,7 +4001,7 @@
     const lmsBlock = q.includeLms
       ? `
         <section class="content-section">
-          <h2>שירות LMS</h2>
+          <h2>${escapeHtml(q.lmsServiceTitle)}</h2>
           <ul class="bullet-list">
             ${lines(q.lmsServiceText).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
           </ul>
@@ -3976,7 +4017,7 @@
         </ul>
       </section>
       ${lmsBlock}
-    `);
+    `, "", q);
   }
 
   function renderPricingPage(q, sections) {
@@ -4025,9 +4066,9 @@
         <table class="pricing-table">
           <thead>
             <tr>
-              <th>הרכיב</th>
-              <th>עלות</th>
-              <th>הערות</th>
+              <th>${escapeHtml(q.pricingItemHeader)}</th>
+              <th>${escapeHtml(q.pricingCostHeader)}</th>
+              <th>${escapeHtml(q.pricingNotesHeader)}</th>
             </tr>
           </thead>
           <tbody>
@@ -4041,7 +4082,7 @@
           ${buildPricingFinePrint(q).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
         </ul>
       </section>
-    `, "pricing-page");
+    `, "pricing-page", q);
   }
 
   function fitPagesToFooter() {
@@ -4071,14 +4112,18 @@
   function renderTermsPage(q, sections) {
     const termsTitle = sectionTitle(sections, "terms") || "תנאים כלליים";
     const cancellationTitle = sectionTitle(sections, "cancellation") || "נהלי ביטולים ועיכובים";
+    const quoteValidity = formatProposalAreaText(q.quoteValidityText, {
+      validDays: q.validDays,
+      company: q.clientCompany,
+    });
 
     const payment = q.showTerms
       ? `
         <section class="content-section">
           <h1 class="page-title">${sectionTitleLink("terms", termsTitle)}</h1>
-          <p><strong>תנאי תשלום לשירות לומדה בענן:</strong> שוטף + 30.</p>
-          ${q.includeLms ? "<p>מסלול שנתי: תשלום מראש לשנה עם העברת הזמנת עבודה.</p>" : ""}
-          <p>הצעת המחיר תהיה בתוקף למשך ${escapeHtml(q.validDays)} ימים מהוצאתה.</p>
+          ${paragraphs(q.paymentTermsText)}
+          ${q.includeLms ? paragraphs(q.lmsAnnualPaymentText) : ""}
+          ${paragraphs(quoteValidity)}
           <ol class="terms-list">
             ${lines(q.termsText).map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
           </ol>
@@ -4100,9 +4145,9 @@
     return page(`
       ${payment}
       ${cancellation}
-      <div class="approval-line">אני מאשר/ת את הסכמתי לתנאים המצוינים במסמך זה</div>
+      <div class="approval-line">${escapeHtml(q.approvalLineText)}</div>
       ${renderClientApproval(q)}
-    `);
+    `, "", q);
   }
 
   function renderClientApproval(q) {
@@ -4132,31 +4177,31 @@
           <strong>${escapeHtml(signatureDate) || "&nbsp;"}</strong>
         </div>
       </div>
-      <p class="approval-note">החתימה הדיגיטלית נשמרת כחלק מנתוני ההצעה ותופיע בקובץ ה-PDF.</p>
+      <p class="approval-note">${escapeHtml(q.approvalNoteText)}</p>
     `;
   }
 
-  function page(content, pageClass = "") {
+  function page(content, pageClass = "", q = quote) {
     const className = ["quote-page", pageClass].filter(Boolean).join(" ");
-    return `<article class="${className}">${renderHeader()}<main class="quote-content">${content}</main>${renderFooter()}</article>`;
+    return `<article class="${className}">${renderHeader(q)}<main class="quote-content">${content}</main>${renderFooter(q)}</article>`;
   }
 
-  function renderHeader() {
+  function renderHeader(q = quote) {
     return `
       <header class="quote-header">
         <img src="assets/brand/improve-it-logo.png" alt="Improve-IT" />
-        <div class="header-ribbon">פיתוח הדרכה | למידה דיגיטלית | תהליכי הכשרה | סרטוני הדרכה</div>
+        <div class="header-ribbon">${escapeHtml(q.headerRibbonText)}</div>
       </header>
     `;
   }
 
-  function renderFooter() {
+  function renderFooter(q = quote) {
     return `
       <footer class="quote-footer" aria-label="פרטי יצירת קשר">
-        <span class="footer-item"><img src="assets/brand/icon-location.png" alt="" />בזל 3, פתח תקווה</span>
-        <span class="footer-item"><img src="assets/brand/icon-web.png" alt="" />www.improve-it.co.il</span>
-        <span class="footer-item"><span class="footer-symbol">@</span>ziv@improve-it.co.il</span>
-        <span class="footer-item"><img src="assets/brand/icon-phone.png" alt="" />073-7858198</span>
+        <span class="footer-item"><img src="assets/brand/icon-location.png" alt="" />${escapeHtml(q.footerAddressText)}</span>
+        <span class="footer-item"><img src="assets/brand/icon-web.png" alt="" />${escapeHtml(q.footerWebsiteText)}</span>
+        <span class="footer-item"><span class="footer-symbol">@</span>${escapeHtml(q.footerEmailText)}</span>
+        <span class="footer-item"><img src="assets/brand/icon-phone.png" alt="" />${escapeHtml(q.footerPhoneText)}</span>
       </footer>
     `;
   }
@@ -4203,6 +4248,10 @@
       : ["שימוש בלומדות מדף"];
     if (q.includeTranslation) pieces.push(`ו${pricingOptionLabel(q, "includeTranslation", "תרגום")}`);
     return pieces.join(" ");
+  }
+
+  function formatProposalAreaText(template, values) {
+    return String(template || "").replace(/\{(service|company|name|validDays)\}/g, (_, key) => values[key] || "");
   }
 
   function buildPricing(q) {
